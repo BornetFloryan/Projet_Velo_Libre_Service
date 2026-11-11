@@ -40,11 +40,15 @@ CREATE TABLE IF NOT EXISTS station (
     latitude DECIMAL(9,6) NOT NULL,
     longitude DECIMAL(9,6) NOT NULL,
     capacite_bornes SMALLINT UNSIGNED NOT NULL,
-    etat ENUM('ouverte', 'maintenance', 'fermee') NOT NULL DEFAULT 'ouverte',
+    etat ENUM('en_service', 'hors_service', 'en_travaux') NOT NULL DEFAULT 'en_service',
+    seuil_velos_min SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+    seuil_bornes_min SMALLINT UNSIGNED NOT NULL DEFAULT 1,
     CONSTRAINT uq_station_nom UNIQUE (nom),
     CONSTRAINT ck_station_capacite CHECK (capacite_bornes > 0),
     CONSTRAINT ck_station_latitude CHECK (latitude BETWEEN -90 AND 90),
-    CONSTRAINT ck_station_longitude CHECK (longitude BETWEEN -180 AND 180)
+    CONSTRAINT ck_station_longitude CHECK (longitude BETWEEN -180 AND 180),
+    CONSTRAINT ck_station_seuil_velos CHECK (seuil_velos_min <= capacite_bornes),
+    CONSTRAINT ck_station_seuil_bornes CHECK (seuil_bornes_min <= capacite_bornes)
 ) ENGINE = InnoDB;
 
 CREATE TABLE IF NOT EXISTS borne (
@@ -126,11 +130,16 @@ CREATE TABLE IF NOT EXISTS trajet (
     date_depart DATETIME NOT NULL,
     date_arrivee DATETIME NULL,
     cout_facture DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    duree_minutes INT UNSIGNED NULL,
     note_evaluation TINYINT UNSIGNED NULL,
+    statut_paiement ENUM('en_attente', 'payee', 'annulee') NOT NULL DEFAULT 'en_attente',
+    date_paiement DATETIME NULL,
     id_usager INT UNSIGNED NOT NULL,
     numero_serie VARCHAR(50) NOT NULL,
     id_station_depart INT UNSIGNED NOT NULL,
     id_station_arrivee INT UNSIGNED NULL,
+    id_borne_depart INT UNSIGNED NOT NULL,
+    id_borne_arrivee INT UNSIGNED NULL,
     CONSTRAINT fk_trajet_usager
         FOREIGN KEY (id_usager) REFERENCES usager(id_usager),
     CONSTRAINT fk_trajet_velo
@@ -139,12 +148,33 @@ CREATE TABLE IF NOT EXISTS trajet (
         FOREIGN KEY (id_station_depart) REFERENCES station(id_station),
     CONSTRAINT fk_trajet_station_arrivee
         FOREIGN KEY (id_station_arrivee) REFERENCES station(id_station),
+    CONSTRAINT fk_trajet_borne_depart
+        FOREIGN KEY (id_borne_depart) REFERENCES borne(id_borne),
+    CONSTRAINT fk_trajet_borne_arrivee
+        FOREIGN KEY (id_borne_arrivee) REFERENCES borne(id_borne),
     CONSTRAINT ck_trajet_dates
         CHECK (date_arrivee IS NULL OR date_arrivee >= date_depart),
     CONSTRAINT ck_trajet_cout CHECK (cout_facture >= 0),
     CONSTRAINT ck_trajet_note CHECK (note_evaluation IS NULL OR note_evaluation BETWEEN 1 AND 5),
     INDEX idx_trajet_usager_date (id_usager, date_depart),
-    INDEX idx_trajet_velo_ouvert (numero_serie, date_arrivee)
+    INDEX idx_trajet_velo_ouvert (numero_serie, date_arrivee),
+    INDEX idx_trajet_statut_paiement (statut_paiement, date_depart)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS operation_portefeuille (
+    id_operation BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    date_heure DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    nature ENUM('rechargement', 'paiement_trajet', 'remboursement') NOT NULL,
+    montant DECIMAL(10,2) NOT NULL,
+    id_usager INT UNSIGNED NOT NULL,
+    id_trajet INT UNSIGNED NULL,
+    CONSTRAINT fk_operation_usager
+        FOREIGN KEY (id_usager) REFERENCES usager(id_usager),
+    CONSTRAINT fk_operation_trajet
+        FOREIGN KEY (id_trajet) REFERENCES trajet(id_trajet),
+    CONSTRAINT uq_operation_paiement_trajet UNIQUE (id_trajet),
+    CONSTRAINT ck_operation_montant CHECK (montant <> 0),
+    INDEX idx_operation_usager_date (id_usager, date_heure)
 ) ENGINE = InnoDB;
 
 -- ============================================================
@@ -172,6 +202,7 @@ CREATE TABLE IF NOT EXISTS operateur (
     id_operateur INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     nom_prenom VARCHAR(160) NOT NULL,
     email VARCHAR(255) NOT NULL,
+    mot_de_passe_hash VARCHAR(255) NOT NULL,
     role_operateur ENUM('maintenance', 'regulation', 'administration') NOT NULL,
     CONSTRAINT uq_operateur_email UNIQUE (email)
 ) ENGINE = InnoDB;
@@ -182,12 +213,9 @@ CREATE TABLE IF NOT EXISTS intervention (
     date_fin DATETIME NULL,
     type_action VARCHAR(120) NOT NULL,
     id_signalement INT UNSIGNED NOT NULL,
-    numero_serie VARCHAR(50) NOT NULL,
     id_operateur INT UNSIGNED NOT NULL,
     CONSTRAINT fk_intervention_signalement
         FOREIGN KEY (id_signalement) REFERENCES signalement(id_signalement),
-    CONSTRAINT fk_intervention_velo
-        FOREIGN KEY (numero_serie) REFERENCES velo(numero_serie),
     CONSTRAINT fk_intervention_operateur
         FOREIGN KEY (id_operateur) REFERENCES operateur(id_operateur),
     CONSTRAINT ck_intervention_dates
@@ -254,6 +282,52 @@ CREATE TABLE IF NOT EXISTS historique_etat (
         FOREIGN KEY (numero_serie) REFERENCES velo(numero_serie),
     INDEX idx_historique_etat_velo_date (numero_serie, date_heure)
 ) ENGINE = InnoDB;
+
+-- ============================================================
+-- VUES : EXPLOITATION ET STATISTIQUES
+-- ============================================================
+
+CREATE OR REPLACE VIEW v_etat_station AS
+SELECT s.id_station,
+       s.nom,
+       s.etat,
+       s.capacite_bornes,
+       COUNT(b.id_borne) AS nombre_bornes,
+       COALESCE(SUM(b.etat = 'disponible' AND v.numero_serie IS NULL), 0) AS bornes_libres,
+       COALESCE(SUM(v.etat = 'disponible'), 0) AS velos_disponibles,
+       COALESCE(SUM(c.libelle = 'mecanique' AND v.etat = 'disponible'), 0) AS velos_mecaniques_disponibles,
+       COALESCE(SUM(c.libelle = 'electrique' AND v.etat = 'disponible'), 0) AS velos_electriques_disponibles,
+       CASE
+           WHEN COALESCE(SUM(b.etat = 'disponible' AND v.numero_serie IS NULL), 0) <= s.seuil_bornes_min THEN 'saturee'
+           WHEN COALESCE(SUM(v.etat = 'disponible'), 0) <= s.seuil_velos_min THEN 'vide'
+           ELSE 'normale'
+       END AS statut_alerte
+FROM station s
+LEFT JOIN borne b ON b.id_station = s.id_station
+LEFT JOIN velo v ON v.id_borne_actuelle = b.id_borne
+LEFT JOIN categorie_velo c ON c.id_categorie = v.id_categorie
+GROUP BY s.id_station, s.nom, s.etat, s.capacite_bornes, s.seuil_velos_min, s.seuil_bornes_min;
+
+CREATE OR REPLACE VIEW v_statistiques_journalieres AS
+SELECT DATE(date_depart) AS jour,
+       COUNT(*) AS nombre_trajets,
+       AVG(duree_minutes) AS duree_moyenne_minutes,
+       SUM(cout_facture) AS recettes
+FROM trajet
+WHERE date_arrivee IS NOT NULL
+GROUP BY DATE(date_depart);
+
+CREATE OR REPLACE VIEW v_recettes_par_formule AS
+SELECT f.id_formule,
+       f.nom AS formule,
+       COUNT(t.id_trajet) AS nombre_trajets,
+       COALESCE(SUM(t.cout_facture), 0) AS recettes
+FROM formule f
+LEFT JOIN abonnement a ON a.id_formule = f.id_formule
+LEFT JOIN trajet t ON t.id_usager = a.id_usager
+                 AND DATE(t.date_depart) BETWEEN a.date_debut AND a.date_fin
+                 AND t.date_arrivee IS NOT NULL
+GROUP BY f.id_formule, f.nom;
 
 -- ============================================================
 -- FONCTION METIER : CALCUL DU COUT D'UN TRAJET
@@ -360,6 +434,8 @@ BEFORE INSERT ON reservation
 FOR EACH ROW
 BEGIN
     DECLARE v_etat VARCHAR(30);
+    DECLARE v_reservation_usager INT DEFAULT 0;
+    DECLARE v_reservation_velo INT DEFAULT 0;
 
     SELECT etat INTO v_etat
     FROM velo
@@ -368,6 +444,28 @@ BEGIN
     IF NEW.statut = 'active' AND v_etat <> 'disponible' THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Le vélo choisi n''est pas disponible à la réservation';
+    END IF;
+
+    IF NEW.statut = 'active' THEN
+        SELECT COUNT(*) INTO v_reservation_usager
+        FROM reservation
+        WHERE id_usager = NEW.id_usager
+          AND statut = 'active';
+
+        SELECT COUNT(*) INTO v_reservation_velo
+        FROM reservation
+        WHERE numero_serie = NEW.numero_serie
+          AND statut = 'active';
+
+        IF v_reservation_usager > 0 THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Un usager ne peut avoir qu''une réservation active';
+        END IF;
+
+        IF v_reservation_velo > 0 THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Le vélo possède déjà une réservation active';
+        END IF;
     END IF;
 END$$
 
@@ -392,22 +490,6 @@ BEGIN
     END IF;
 END$$
 
-CREATE TRIGGER trg_intervention_bi_coherence_signalement
-BEFORE INSERT ON intervention
-FOR EACH ROW
-BEGIN
-    DECLARE v_numero_serie_signalement VARCHAR(50);
-
-    SELECT numero_serie INTO v_numero_serie_signalement
-    FROM signalement
-    WHERE id_signalement = NEW.id_signalement;
-
-    IF v_numero_serie_signalement <> NEW.numero_serie THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Le vélo de l''intervention doit correspondre au vélo signalé';
-    END IF;
-END$$
-
 CREATE TRIGGER trg_reservation_ai_reserver_velo
 AFTER INSERT ON reservation
 FOR EACH ROW
@@ -419,22 +501,168 @@ BEGIN
     END IF;
 END$$
 
+CREATE TRIGGER trg_reservation_au_liberer_velo
+AFTER UPDATE ON reservation
+FOR EACH ROW
+BEGIN
+    DECLARE v_reservation_active INT DEFAULT 0;
+    DECLARE v_trajet_ouvert INT DEFAULT 0;
+
+    IF OLD.statut = 'active' AND NEW.statut <> 'active' THEN
+        SELECT COUNT(*) INTO v_reservation_active
+        FROM reservation
+        WHERE numero_serie = NEW.numero_serie
+          AND statut = 'active';
+
+        SELECT COUNT(*) INTO v_trajet_ouvert
+        FROM trajet
+        WHERE numero_serie = NEW.numero_serie
+          AND date_arrivee IS NULL;
+
+        IF v_reservation_active = 0 AND v_trajet_ouvert = 0 THEN
+            UPDATE velo
+            SET etat = 'disponible'
+            WHERE numero_serie = NEW.numero_serie
+              AND etat = 'reserve';
+        END IF;
+    END IF;
+END$$
+
+CREATE TRIGGER trg_trajet_bi_controler_emprunt
+BEFORE INSERT ON trajet
+FOR EACH ROW
+BEGIN
+    DECLARE v_etat_velo VARCHAR(30);
+    DECLARE v_borne_actuelle INT UNSIGNED;
+    DECLARE v_station_borne INT UNSIGNED;
+    DECLARE v_trajet_usager INT DEFAULT 0;
+    DECLARE v_trajet_velo INT DEFAULT 0;
+    DECLARE v_abonnement_actif INT DEFAULT 0;
+    DECLARE v_reservation_autre_usager INT DEFAULT 0;
+
+    SELECT etat, id_borne_actuelle
+      INTO v_etat_velo, v_borne_actuelle
+      FROM velo
+     WHERE numero_serie = NEW.numero_serie;
+
+    IF v_etat_velo NOT IN ('disponible', 'reserve') THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Un vélo indisponible ou défectueux ne peut pas être emprunté';
+    END IF;
+
+    SELECT COUNT(*) INTO v_trajet_usager
+    FROM trajet
+    WHERE id_usager = NEW.id_usager
+      AND date_arrivee IS NULL;
+
+    SELECT COUNT(*) INTO v_trajet_velo
+    FROM trajet
+    WHERE numero_serie = NEW.numero_serie
+      AND date_arrivee IS NULL;
+
+    IF v_trajet_usager > 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Un usager ne peut emprunter qu''un vélo à la fois';
+    END IF;
+
+    IF v_trajet_velo > 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Le vélo est déjà en location';
+    END IF;
+
+    SELECT COUNT(*) INTO v_abonnement_actif
+    FROM abonnement
+    WHERE id_usager = NEW.id_usager
+      AND DATE(NEW.date_depart) BETWEEN date_debut AND date_fin;
+
+    IF v_abonnement_actif = 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Un abonnement valide est nécessaire pour emprunter un vélo';
+    END IF;
+
+    SELECT COUNT(*) INTO v_reservation_autre_usager
+    FROM reservation
+    WHERE numero_serie = NEW.numero_serie
+      AND statut = 'active'
+      AND id_usager <> NEW.id_usager;
+
+    IF v_reservation_autre_usager > 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Le vélo est réservé par un autre usager';
+    END IF;
+
+    IF v_borne_actuelle IS NULL OR v_borne_actuelle <> NEW.id_borne_depart THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La borne de départ ne correspond pas à la position actuelle du vélo';
+    END IF;
+
+    SELECT id_station INTO v_station_borne
+    FROM borne
+    WHERE id_borne = NEW.id_borne_depart;
+
+    IF v_station_borne <> NEW.id_station_depart THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La borne de départ doit appartenir à la station de départ';
+    END IF;
+END$$
+
 CREATE TRIGGER trg_trajet_bu_controler_dates
 BEFORE UPDATE ON trajet
 FOR EACH ROW
 BEGIN
+    DECLARE v_station_borne_arrivee INT UNSIGNED;
+    DECLARE v_borne_occupee INT DEFAULT 0;
+    DECLARE v_solde DECIMAL(10,2);
+
     IF NEW.date_arrivee IS NOT NULL AND NEW.date_arrivee < NEW.date_depart THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'La date d''arrivée doit être postérieure à la date de départ';
     END IF;
 
     IF OLD.date_arrivee IS NULL AND NEW.date_arrivee IS NOT NULL THEN
+        IF NEW.id_station_arrivee IS NULL OR NEW.id_borne_arrivee IS NULL THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Une station et une borne d''arrivée sont obligatoires pour restituer le vélo';
+        END IF;
+
+        SELECT id_station INTO v_station_borne_arrivee
+        FROM borne
+        WHERE id_borne = NEW.id_borne_arrivee;
+
+        IF v_station_borne_arrivee <> NEW.id_station_arrivee THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'La borne d''arrivée doit appartenir à la station d''arrivée';
+        END IF;
+
+        SELECT COUNT(*) INTO v_borne_occupee
+        FROM velo
+        WHERE id_borne_actuelle = NEW.id_borne_arrivee
+          AND numero_serie <> NEW.numero_serie;
+
+        IF v_borne_occupee > 0 THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'La borne d''arrivée est déjà occupée';
+        END IF;
+
+        SET NEW.duree_minutes = TIMESTAMPDIFF(MINUTE, NEW.date_depart, NEW.date_arrivee);
         SET NEW.cout_facture = fn_calculer_cout_trajet(
             NEW.id_usager,
             NEW.numero_serie,
             NEW.date_depart,
             NEW.date_arrivee
         );
+
+        SELECT solde_portefeuille INTO v_solde
+        FROM usager
+        WHERE id_usager = NEW.id_usager;
+
+        IF v_solde < NEW.cout_facture THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Solde insuffisant pour payer le trajet';
+        END IF;
+
+        SET NEW.statut_paiement = 'payee';
+        SET NEW.date_paiement = NOW();
     END IF;
 END$$
 
@@ -460,8 +688,16 @@ FOR EACH ROW
 BEGIN
     IF OLD.date_arrivee IS NULL AND NEW.date_arrivee IS NOT NULL THEN
         UPDATE velo
-        SET etat = 'disponible'
+        SET etat = 'disponible',
+            id_borne_actuelle = NEW.id_borne_arrivee
         WHERE numero_serie = NEW.numero_serie;
+
+        UPDATE usager
+        SET solde_portefeuille = solde_portefeuille - NEW.cout_facture
+        WHERE id_usager = NEW.id_usager;
+
+        INSERT INTO operation_portefeuille (nature, montant, id_usager, id_trajet)
+        VALUES ('paiement_trajet', -NEW.cout_facture, NEW.id_usager, NEW.id_trajet);
     END IF;
 END$$
 
