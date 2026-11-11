@@ -71,17 +71,17 @@ INSERT INTO borne (id_borne, etat, id_station) VALUES
 INSERT INTO usager (
     nom, prenom, email, mot_de_passe_hash, solde_portefeuille, tarif_reduit
 ) VALUES
-    ('Martin', 'Alice', 'alice.martin@example.test', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 50.00, FALSE),
-    ('Bernard', 'Lucas', 'lucas.bernard@example.test', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 25.00, FALSE),
-    ('Petit', 'Lina', 'lina.petit@example.test', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 35.00, TRUE),
-    ('Durand', 'Hugo', 'hugo.durand@example.test', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 15.00, FALSE);
+    ('Martin', 'Alice', 'alice.martin@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 50.00, FALSE),
+    ('Bernard', 'Lucas', 'lucas.bernard@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 25.00, FALSE),
+    ('Petit', 'Lina', 'lina.petit@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 35.00, TRUE),
+    ('Durand', 'Hugo', 'hugo.durand@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 15.00, FALSE);
 
 INSERT INTO operateur (
     nom_prenom, email, mot_de_passe_hash, role_operateur
 ) VALUES
-    ('Camille Leroy', 'camille.leroy@example.test', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'maintenance'),
-    ('Nolan Robert', 'nolan.robert@example.test', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'regulation'),
-    ('Sarah Thomas', 'sarah.thomas@example.test', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'administration');
+    ('Camille Leroy', 'camille.leroy@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 'maintenance'),
+    ('Nolan Robert', 'nolan.robert@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 'regulation'),
+    ('Sarah Thomas', 'sarah.thomas@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 'administration');
 
 INSERT INTO abonnement (date_debut, date_fin, id_usager, id_formule) VALUES
     (CURDATE() - INTERVAL 180 DAY, CURDATE() + INTERVAL 185 DAY, 1, 2),

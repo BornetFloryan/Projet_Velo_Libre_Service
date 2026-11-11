@@ -1,0 +1,9 @@
+# Configuration locale de l'application (identifiants MySQL éventuels)
+web/config.local.php
+
+# Fichiers temporaires PHP
+web/.phpserver.log
+
+# Fichiers temporaires de génération de la présentation
+.presentation-build/
+.codex-finalizer/
