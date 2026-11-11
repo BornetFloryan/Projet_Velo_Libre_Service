@@ -380,7 +380,12 @@ BEGIN
     SET v_duree_minutes = GREATEST(TIMESTAMPDIFF(MINUTE, p_date_depart, p_date_arrivee), 0);
 
     RETURN v_prix_base
-         + CEILING(GREATEST(v_duree_minutes - v_duree_gratuite, 0) / 30.0) * v_tarif_tranche
+         + CEILING(
+               GREATEST(
+                   CAST(v_duree_minutes AS SIGNED) - CAST(v_duree_gratuite AS SIGNED),
+                   0
+               ) / 30.0
+           ) * v_tarif_tranche
          + IF(v_est_electrique, v_supplement_electrique, 0.00);
 END$$
 
@@ -692,12 +697,14 @@ BEGIN
             id_borne_actuelle = NEW.id_borne_arrivee
         WHERE numero_serie = NEW.numero_serie;
 
-        UPDATE usager
-        SET solde_portefeuille = solde_portefeuille - NEW.cout_facture
-        WHERE id_usager = NEW.id_usager;
+        IF NEW.cout_facture > 0 THEN
+            UPDATE usager
+            SET solde_portefeuille = solde_portefeuille - NEW.cout_facture
+            WHERE id_usager = NEW.id_usager;
 
-        INSERT INTO operation_portefeuille (nature, montant, id_usager, id_trajet)
-        VALUES ('paiement_trajet', -NEW.cout_facture, NEW.id_usager, NEW.id_trajet);
+            INSERT INTO operation_portefeuille (nature, montant, id_usager, id_trajet)
+            VALUES ('paiement_trajet', -NEW.cout_facture, NEW.id_usager, NEW.id_trajet);
+        END IF;
     END IF;
 END$$
 
