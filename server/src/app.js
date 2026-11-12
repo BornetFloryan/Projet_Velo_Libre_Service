@@ -9,9 +9,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({ secret: config.sessionSecret, resave: false, saveUninitialized: false, cookie: { httpOnly: true, sameSite: 'lax' } }));
 
+app.use('/api/auth', require('./routes/auth-clean.routes'));
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/network', require('./routes/network.routes'));
+app.use('/api/user', require('./routes/user-read.routes'));
 app.use('/api/user', require('./routes/user.routes'));
+app.use('/api/operator', require('./routes/operator-read.routes'));
 app.use('/api/operator', require('./routes/operator.routes'));
 app.use('/api/common', require('./routes/common.routes'));
 
