@@ -13,7 +13,7 @@ USE velo_libre_service;
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS categorie_velo (
-    id_categorie TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_categorie INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     libelle VARCHAR(30) NOT NULL,
     CONSTRAINT uq_categorie_velo_libelle UNIQUE (libelle),
     CONSTRAINT ck_categorie_velo_libelle
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS formule (
     id_formule INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     nom VARCHAR(80) NOT NULL,
     prix_base DECIMAL(8,2) NOT NULL DEFAULT 0.00,
-    duree_gratuite_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    duree_gratuite_minutes INT UNSIGNED NOT NULL DEFAULT 0,
     tarif_par_tranche DECIMAL(8,2) NOT NULL DEFAULT 0.00,
     supplement_electrique DECIMAL(8,2) NOT NULL DEFAULT 0.00,
     CONSTRAINT uq_formule_nom UNIQUE (nom),
@@ -39,10 +39,10 @@ CREATE TABLE IF NOT EXISTS station (
     adresse VARCHAR(255) NOT NULL,
     latitude DECIMAL(9,6) NOT NULL,
     longitude DECIMAL(9,6) NOT NULL,
-    capacite_bornes SMALLINT UNSIGNED NOT NULL,
+    capacite_bornes INT UNSIGNED NOT NULL,
     etat ENUM('en_service', 'hors_service', 'en_travaux') NOT NULL DEFAULT 'en_service',
-    seuil_velos_min SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-    seuil_bornes_min SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+    seuil_velos_min INT UNSIGNED NOT NULL DEFAULT 1,
+    seuil_bornes_min INT UNSIGNED NOT NULL DEFAULT 1,
     CONSTRAINT uq_station_nom UNIQUE (nom),
     CONSTRAINT ck_station_capacite CHECK (capacite_bornes > 0),
     CONSTRAINT ck_station_latitude CHECK (latitude BETWEEN -90 AND 90),
@@ -98,9 +98,9 @@ CREATE TABLE IF NOT EXISTS velo (
     numero_serie VARCHAR(50) PRIMARY KEY,
     etat ENUM('disponible', 'reserve', 'en_cours', 'maintenance', 'atelier', 'hors_service')
         NOT NULL DEFAULT 'disponible',
-    niveau_batterie TINYINT UNSIGNED NULL,
+    niveau_batterie INT UNSIGNED NULL,
     date_mise_service DATE NOT NULL,
-    id_categorie TINYINT UNSIGNED NOT NULL,
+    id_categorie INT UNSIGNED NOT NULL,
     id_borne_actuelle INT UNSIGNED NULL,
     CONSTRAINT fk_velo_categorie
         FOREIGN KEY (id_categorie) REFERENCES categorie_velo(id_categorie),
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS trajet (
     date_arrivee DATETIME NULL,
     cout_facture DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     duree_minutes INT UNSIGNED NULL,
-    note_evaluation TINYINT UNSIGNED NULL,
+    note_evaluation INT UNSIGNED NULL,
     statut_paiement ENUM('en_attente', 'payee', 'annulee') NOT NULL DEFAULT 'en_attente',
     date_paiement DATETIME NULL,
     id_usager INT UNSIGNED NOT NULL,
@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS trajet (
 ) ENGINE = InnoDB;
 
 CREATE TABLE IF NOT EXISTS operation_portefeuille (
-    id_operation BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_operation INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     date_heure DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     nature ENUM('rechargement', 'paiement_trajet', 'remboursement') NOT NULL,
     montant DECIMAL(10,2) NOT NULL,
@@ -256,7 +256,7 @@ CREATE TABLE IF NOT EXISTS mouvement_regulation (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS historique_position (
-    id_historique_position BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_historique_position INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     date_heure DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ancienne_borne INT UNSIGNED NULL,
     nouvelle_borne INT UNSIGNED NULL,
@@ -272,7 +272,7 @@ CREATE TABLE IF NOT EXISTS historique_position (
 ) ENGINE = InnoDB;
 
 CREATE TABLE IF NOT EXISTS historique_etat (
-    id_historique_etat BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_historique_etat INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     date_heure DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ancien_etat VARCHAR(30) NULL,
     nouvel_etat VARCHAR(30) NOT NULL,
@@ -345,7 +345,7 @@ RETURNS DECIMAL(10,2)
 READS SQL DATA
 BEGIN
     DECLARE v_prix_base DECIMAL(8,2) DEFAULT 0.00;
-    DECLARE v_duree_gratuite SMALLINT UNSIGNED DEFAULT 0;
+    DECLARE v_duree_gratuite INT UNSIGNED DEFAULT 0;
     DECLARE v_tarif_tranche DECIMAL(8,2) DEFAULT 0.00;
     DECLARE v_supplement_electrique DECIMAL(8,2) DEFAULT 0.00;
     DECLARE v_est_electrique BOOLEAN DEFAULT FALSE;
@@ -478,8 +478,8 @@ CREATE TRIGGER trg_borne_bi_respecter_capacite
 BEFORE INSERT ON borne
 FOR EACH ROW
 BEGIN
-    DECLARE v_capacite SMALLINT UNSIGNED;
-    DECLARE v_nombre_bornes SMALLINT UNSIGNED;
+    DECLARE v_capacite INT UNSIGNED;
+    DECLARE v_nombre_bornes INT UNSIGNED;
 
     SELECT capacite_bornes INTO v_capacite
     FROM station
