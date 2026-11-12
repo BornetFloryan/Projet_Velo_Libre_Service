@@ -5,12 +5,12 @@ import { userService } from '../services/user.service.js';
 import { operatorService } from '../services/operator.service.js';
 
 export const useAppStore = defineStore('app', {
-  state: () => ({ actor: null, view: 'dashboard', data: {}, form: {}, loading: false, error: '', success: '', authMode: 'login', login: { email: '', password: '' }, register: { prenom: '', nom: '', email: '', password: '' } }),
+  state: () => ({ actor: null, initialized: false, view: 'dashboard', data: {}, form: {}, loading: false, error: '', success: '', authMode: 'login', login: { email: '', password: '' }, register: { prenom: '', nom: '', email: '', password: '' } }),
   getters: { isOperator: state => state.actor?.type === 'operateur', title: state => ({ dashboard: 'Tableau de bord', stations: 'Stations', trips: 'Mes trajets', account: 'Mon compte', operations: 'Opérations', statistics: 'Statistiques' }[state.view] || 'VéloLibre') },
   actions: {
     async run(task) { this.error = ''; this.success = ''; this.loading = true; try { await task(); } catch (e) { this.error = e.message; } finally { this.loading = false; } },
     async load(next) { await this.run(async () => { this.view = next; if (next === 'stations') this.data = await request('/network/stations'); else if (this.isOperator) this.data = await operatorService[{ dashboard: 'overview', operations: 'operations', statistics: 'statistics' }[next] || 'overview'](); else this.data = await userService[{ dashboard: 'dashboard', trips: 'trips', account: 'account' }[next] || 'dashboard'](); this.data.form = this.form; }); },
-    async boot() { try { const result = await authService.me(); this.actor = result.actor; if (this.actor) await this.load('dashboard'); } catch (_) {} },
+    async boot() { try { const result = await authService.me(); this.actor = result.actor; } catch (_) { this.actor = null; } finally { this.initialized = true; } },
     async loginUser() { await this.run(async () => { this.actor = (await authService.login(this.login)).actor; await this.load('dashboard'); }); },
     async registerUser() { await this.run(async () => { this.success = (await authService.register(this.register)).message; this.authMode = 'login'; }); },
     async logout() { await this.run(async () => { await authService.logout(); this.actor = null; this.data = {}; }); },
