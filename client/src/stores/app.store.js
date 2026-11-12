@@ -14,7 +14,7 @@ export const useAppStore = defineStore('app', {
     async loginUser() { await this.run(async () => { this.actor = (await authService.login(this.login)).actor; await this.load('dashboard'); }); },
     async registerUser() { await this.run(async () => { this.success = (await authService.register(this.register)).message; this.authMode = 'login'; }); },
     async logout() { await this.run(async () => { await authService.logout(); this.actor = null; this.data = {}; }); },
-    async action(type, payload, next = this.view) { await this.run(async () => { const result = this.isOperator ? await operatorService.action(type, payload) : await userService.action(type, payload); this.success = result.message; await this.load(next); }); },
+    async action(type, payload, next = this.view) { await this.run(async () => { const result = this.isOperator ? await operatorService.action(type, payload) : await userService.action(type, payload); await this.load(next); this.success = result.message; }); },
     async resetDatabase() { await this.run(async () => { if (!window.confirm('Remettre la base dans son état initial ? Toutes les données actuelles seront supprimées.')) return; this.success = (await request('/common/reset-database', { method: 'POST' })).message; await this.load('dashboard'); }); }
   }
 });
