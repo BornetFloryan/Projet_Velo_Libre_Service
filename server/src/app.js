@@ -23,5 +23,18 @@ app.use(express.static(clientPath));
 app.get('*', (req, res) => res.sendFile(path.join(clientPath, 'index.html')));
 app.use((error, req, res, next) => res.status(500).json({ error: businessMessage(error) }));
 
-if (require.main === module) app.listen(config.port, () => console.log(`VéloLibre Node/Vue disponible sur http://localhost:${config.port}`));
+if (require.main === module) {
+  const start = (port) => {
+    const server = app.listen(port, () => console.log(`VéloLibre Node/Vue disponible sur http://localhost:${port}`));
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE' && port < config.port + 10) {
+        console.warn(`Le port ${port} est déjà utilisé. Essai sur le port ${port + 1}…`);
+        start(port + 1);
+        return;
+      }
+      throw error;
+    });
+  };
+  start(config.port);
+}
 module.exports = app;
