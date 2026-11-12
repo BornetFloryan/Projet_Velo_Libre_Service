@@ -1,9 +1,9 @@
 @echo off
 setlocal
-cd /d "%~dp0web"
+cd /d "%~dp0"
 echo.
 echo Interface disponible sur http://localhost:8080
 echo Appuyez sur Ctrl+C pour arreter le serveur.
 echo.
-C:\xampp\php\php.exe -S localhost:8080 -t public public/index.php
+npm start
 endlocal

@@ -1,0 +1,17 @@
+{
+  "name": "velo-libre-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interface Vue 3 et API Node.js du projet BD70",
+  "scripts": {
+    "start": "node server/src/app.js",
+    "dev": "node --watch server/src/app.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "mysql2": "^3.11.5"
+  }
+}

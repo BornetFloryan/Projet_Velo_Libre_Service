@@ -15,7 +15,7 @@ Application de gestion d’un réseau de vélos en libre-service. Le dépôt con
 
 ## Démarrage rapide
 
-Prérequis : XAMPP avec MySQL et PHP 8 (ou PHP 8 avec l’extension `pdo_mysql`).
+Prérequis : Node.js 18 ou supérieur et MySQL (XAMPP convient pour MySQL).
 
 1. Démarrer MySQL dans XAMPP.
 2. Importer, dans cet ordre, `velo_libre_service_mysql.sql` puis `donnees_test.sql` dans phpMyAdmin.
@@ -25,15 +25,15 @@ Prérequis : XAMPP avec MySQL et PHP 8 (ou PHP 8 avec l’extension `pdo_mysql`)
 SET GLOBAL event_scheduler = ON;
 ```
 
-4. Double-cliquer sur `lancer_interface.bat`, ou exécuter la commande suivante depuis le dossier du projet :
+4. Copier `.env.example` vers `.env` si les paramètres MySQL par défaut ne conviennent pas.
+5. Installer les dépendances puis lancer l’application :
 
 ```powershell
-C:\xampp\php\php.exe -S localhost:8080 -t web/public web/public/index.php
+npm install
+npm start
 ```
 
-5. Ouvrir <http://localhost:8080>.
-
-Si MySQL n’utilise pas l’installation XAMPP par défaut, copier `web/config.example.php` vers `web/config.local.php` puis renseigner les identifiants. Ce dernier fichier n’est pas versionné.
+6. Ouvrir <http://localhost:8080> ou double-cliquer sur `lancer_interface.bat`.
 
 ## Comptes de démonstration
 
@@ -53,8 +53,9 @@ Les mots de passe ne sont présents que pour le jeu de démonstration. Ils sont 
 ├── velo_libre_service_mysql.sql   # Schéma, contraintes, vues, triggers, fonction, événement
 ├── donnees_test.sql               # Jeu de données de démonstration
 ├── web/
-│   ├── public/                    # Point d’entrée HTTP et ressources publiques
-│   └── src/                       # Application découpée : routeur, contrôleur, actions, vues
+├── server/src/                    # API Express, routes, accès MySQL et sécurité
+├── client/                        # SPA Vue 3 et composants de l’interface
+├── package.json                   # Dépendances et scripts Node.js
 ├── tests/                         # Scénarios de validation
 ├── livrables/                     # Support PowerPoint pour l’oral
 ├── DOCUMENTATION.md               # Architecture et choix défendables à l’oral
