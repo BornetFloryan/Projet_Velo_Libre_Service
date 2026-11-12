@@ -794,4 +794,115 @@ END$$
 
 DELIMITER ;
 
--- SHOW EVENTS FROM velo_libre_service; (à exécuter après SET GLOBAL event_scheduler = ON)
+-- ============================================================
+-- EVENEMENTS DE DEMONSTRATION
+-- Ils utilisent uniquement les comptes simulation.* et les vélos SIM-*.
+-- Ils sont désactivés par défaut : une production ne crée pas de fausses
+-- réservations ou pannes. Ils servent à montrer les automatisations en démo.
+-- ============================================================
+
+DELIMITER $$
+
+-- Crée régulièrement une réservation de démonstration qui expirera après 15 minutes.
+CREATE EVENT IF NOT EXISTS ev_simuler_reservation_demo
+ON SCHEDULE EVERY 3 MINUTE
+ON COMPLETION PRESERVE
+DISABLE
+DO
+BEGIN
+    INSERT INTO reservation (date_reservation, statut, id_usager, numero_serie)
+    SELECT NOW(), 'active', u.id_usager, v.numero_serie
+    FROM usager u
+    CROSS JOIN velo v
+    WHERE u.email LIKE 'simulation.%@example.test'
+      AND v.numero_serie LIKE 'SIM-%'
+      AND v.etat = 'disponible'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM reservation r
+          WHERE r.id_usager = u.id_usager
+            AND r.statut = 'active'
+      )
+      AND NOT EXISTS (
+          SELECT 1
+          FROM reservation r
+          WHERE r.numero_serie = v.numero_serie
+            AND r.statut = 'active'
+      )
+    ORDER BY RAND()
+    LIMIT 1;
+END$$
+
+-- Simule un incident sur un vélo de démonstration et crée le signalement associé.
+CREATE EVENT IF NOT EXISTS ev_simuler_panne_demo
+ON SCHEDULE EVERY 10 MINUTE
+ON COMPLETION PRESERVE
+DISABLE
+DO
+BEGIN
+    DECLARE v_numero_serie VARCHAR(50) DEFAULT NULL;
+    DECLARE v_station INT DEFAULT NULL;
+
+    SELECT v.numero_serie, b.id_station
+      INTO v_numero_serie, v_station
+      FROM velo v
+      JOIN borne b ON b.id_borne = v.id_borne_actuelle
+     WHERE v.numero_serie LIKE 'SIM-%'
+       AND v.etat = 'disponible'
+     ORDER BY RAND()
+     LIMIT 1;
+
+    IF v_numero_serie IS NOT NULL THEN
+        UPDATE velo
+        SET etat = 'maintenance'
+        WHERE numero_serie = v_numero_serie;
+
+        INSERT INTO signalement (
+            date_detection, description, id_usager, numero_serie, id_station
+        )
+        SELECT
+            NOW(),
+            'Incident simulé : contrôle préventif demandé.',
+            id_usager,
+            v_numero_serie,
+            v_station
+        FROM usager
+        WHERE email = 'simulation.01@example.test';
+    END IF;
+END$$
+
+-- Remet progressivement un vélo de démonstration en service après maintenance.
+CREATE EVENT IF NOT EXISTS ev_simuler_remise_service_demo
+ON SCHEDULE EVERY 15 MINUTE
+ON COMPLETION PRESERVE
+DISABLE
+DO
+BEGIN
+    UPDATE velo
+    SET etat = 'disponible',
+        niveau_batterie = CASE
+            WHEN id_categorie = 2 THEN GREATEST(COALESCE(niveau_batterie, 60), 60)
+            ELSE NULL
+        END
+    WHERE numero_serie = (
+        SELECT numero_serie
+        FROM (
+            SELECT numero_serie
+            FROM velo
+            WHERE numero_serie LIKE 'SIM-%'
+              AND etat = 'maintenance'
+            ORDER BY numero_serie
+            LIMIT 1
+        ) AS velo_a_remettre_en_service
+    );
+END$$
+
+DELIMITER ;
+
+-- Activer le planificateur une fois sur le serveur : SET GLOBAL event_scheduler = ON;
+-- Lancer la simulation : ALTER EVENT ev_simuler_reservation_demo ENABLE;
+--                       ALTER EVENT ev_simuler_panne_demo ENABLE;
+--                       ALTER EVENT ev_simuler_remise_service_demo ENABLE;
+-- L'arrêter : ALTER EVENT ev_simuler_reservation_demo DISABLE;
+--             ALTER EVENT ev_simuler_panne_demo DISABLE;
+--             ALTER EVENT ev_simuler_remise_service_demo DISABLE;

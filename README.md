@@ -25,6 +25,22 @@ Prérequis : Node.js 18 ou supérieur et MySQL (XAMPP convient pour MySQL).
 SET GLOBAL event_scheduler = ON;
 ```
 
+Les événements de simulation sont volontairement désactivés. Ils n’utilisent que les comptes
+`simulation.*` et les vélos `SIM-*` du jeu de données. Pour animer la démonstration :
+
+```sql
+ALTER EVENT ev_simuler_reservation_demo ENABLE;
+ALTER EVENT ev_simuler_panne_demo ENABLE;
+ALTER EVENT ev_simuler_remise_service_demo ENABLE;
+```
+
+Pour les arrêter, remplacer `ENABLE` par `DISABLE`. L’expiration des réservations reste un
+événement métier réel ; les trois événements `SIM-*` servent uniquement à la démonstration.
+
+Pour comparer les plans d’exécution avec un volume plus important, importer ensuite
+`donnees_performance.sql`. Il ajoute 24 000 lignes d’historique de façon réinitialisable et
+termine par deux requêtes `EXPLAIN`, avec et sans utilisation de l’index d’historique.
+
 4. Copier `.env.example` vers `.env` si les paramètres MySQL par défaut ne conviennent pas.
 5. Installer les dépendances puis lancer l’application :
 
@@ -52,6 +68,7 @@ Les mots de passe ne sont présents que pour le jeu de démonstration. Ils sont 
 .
 ├── velo_libre_service_mysql.sql   # Schéma, contraintes, vues, triggers, fonction, événement
 ├── donnees_test.sql               # Jeu de données de démonstration
+├── donnees_performance.sql         # Volume optionnel pour tester les index
 ├── server/src/                    # API Express, routes, accès MySQL et sécurité
 ├── client/                        # SPA Vue 3 et composants de l’interface
 ├── package.json                   # Dépendances et scripts Node.js

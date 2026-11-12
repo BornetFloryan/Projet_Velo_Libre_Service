@@ -74,7 +74,15 @@ INSERT INTO usager (
     ('Martin', 'Alice', 'alice.martin@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 50.00, FALSE),
     ('Bernard', 'Lucas', 'lucas.bernard@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 25.00, FALSE),
     ('Petit', 'Lina', 'lina.petit@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 35.00, TRUE),
-    ('Durand', 'Hugo', 'hugo.durand@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 15.00, FALSE);
+    ('Durand', 'Hugo', 'hugo.durand@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 15.00, FALSE),
+    ('Simulation', '01', 'simulation.01@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 30.00, FALSE),
+    ('Simulation', '02', 'simulation.02@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 30.00, FALSE),
+    ('Simulation', '03', 'simulation.03@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 30.00, FALSE),
+    ('Simulation', '04', 'simulation.04@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 30.00, FALSE),
+    ('Simulation', '05', 'simulation.05@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 30.00, FALSE),
+    ('Simulation', '06', 'simulation.06@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 30.00, FALSE),
+    ('Simulation', '07', 'simulation.07@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 30.00, FALSE),
+    ('Simulation', '08', 'simulation.08@example.test', '$2y$10$Ee9FGYDcE4qWxnCWA9lfu.dNiHmGl2/o2NBb9Oj.YYsJGib5qk0sK', 30.00, FALSE);
 
 INSERT INTO operateur (
     nom_prenom, email, mot_de_passe_hash, role_operateur
@@ -89,11 +97,22 @@ INSERT INTO abonnement (date_debut, date_fin, id_usager, id_formule) VALUES
     (CURDATE() - INTERVAL 90 DAY, CURDATE() + INTERVAL 275 DAY, 3, 3),
     (CURDATE() - INTERVAL 10 DAY, CURDATE() + INTERVAL 20 DAY, 4, 1);
 
+-- Comptes dédiés aux événements de démonstration : ils ne représentent pas de vrais usagers.
+INSERT INTO abonnement (date_debut, date_fin, id_usager, id_formule)
+SELECT CURDATE() - INTERVAL 30 DAY, CURDATE() + INTERVAL 335 DAY, id_usager, 2
+FROM usager
+WHERE email LIKE 'simulation.%@example.test';
+
 INSERT INTO operation_portefeuille (nature, montant, id_usager) VALUES
     ('rechargement', 50.00, 1),
     ('rechargement', 25.00, 2),
     ('rechargement', 35.00, 3),
     ('rechargement', 15.00, 4);
+
+INSERT INTO operation_portefeuille (nature, montant, id_usager)
+SELECT 'rechargement', 30.00, id_usager
+FROM usager
+WHERE email LIKE 'simulation.%@example.test';
 
 -- ============================================================
 -- FLOTTE
@@ -112,6 +131,23 @@ INSERT INTO velo (
     ('VELO-007', 'disponible', NULL, CURDATE() - INTERVAL 400 DAY, 1, 18),
     ('VELO-008', 'hors_service', 5, CURDATE() - INTERVAL 800 DAY, 2, 25),
     ('VELO-009', 'disponible', 76, CURDATE() - INTERVAL 100 DAY, 2, 26);
+
+-- Flotte dédiée aux événements de démonstration, séparée des vélos présentés aux usagers.
+INSERT INTO velo (
+    numero_serie, etat, niveau_batterie, date_mise_service, id_categorie, id_borne_actuelle
+) VALUES
+    ('SIM-001', 'disponible', NULL, CURDATE() - INTERVAL 200 DAY, 1, 3),
+    ('SIM-002', 'disponible', 85, CURDATE() - INTERVAL 180 DAY, 2, 4),
+    ('SIM-003', 'disponible', NULL, CURDATE() - INTERVAL 170 DAY, 1, 6),
+    ('SIM-004', 'disponible', 76, CURDATE() - INTERVAL 160 DAY, 2, 7),
+    ('SIM-005', 'disponible', NULL, CURDATE() - INTERVAL 150 DAY, 1, 8),
+    ('SIM-006', 'disponible', 64, CURDATE() - INTERVAL 140 DAY, 2, 9),
+    ('SIM-007', 'disponible', NULL, CURDATE() - INTERVAL 130 DAY, 1, 13),
+    ('SIM-008', 'disponible', 71, CURDATE() - INTERVAL 120 DAY, 2, 14),
+    ('SIM-009', 'disponible', NULL, CURDATE() - INTERVAL 110 DAY, 1, 15),
+    ('SIM-010', 'disponible', 89, CURDATE() - INTERVAL 100 DAY, 2, 16),
+    ('SIM-011', 'disponible', NULL, CURDATE() - INTERVAL 90 DAY, 1, 19),
+    ('SIM-012', 'disponible', 58, CURDATE() - INTERVAL 80 DAY, 2, 20);
 
 -- ============================================================
 -- TRAJET HISTORIQUE PAYE
