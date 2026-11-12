@@ -1,0 +1,6 @@
+<?php
+
+declare(strict_types=1);
+
+require dirname(__DIR__) . '/src/Application.php';
+(new Application())->run();

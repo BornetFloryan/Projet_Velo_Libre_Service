@@ -28,7 +28,7 @@ SET GLOBAL event_scheduler = ON;
 4. Double-cliquer sur `lancer_interface.bat`, ou exécuter la commande suivante depuis le dossier du projet :
 
 ```powershell
-C:\xampp\php\php.exe -S localhost:8080 -t web
+C:\xampp\php\php.exe -S localhost:8080 -t web/public web/public/index.php
 ```
 
 5. Ouvrir <http://localhost:8080>.
@@ -52,7 +52,9 @@ Les mots de passe ne sont présents que pour le jeu de démonstration. Ils sont 
 .
 ├── velo_libre_service_mysql.sql   # Schéma, contraintes, vues, triggers, fonction, événement
 ├── donnees_test.sql               # Jeu de données de démonstration
-├── web/                           # Interface PHP + Bootstrap
+├── web/
+│   ├── public/                    # Point d’entrée HTTP et ressources publiques
+│   └── src/                       # Application découpée : routeur, contrôleur, actions, vues
 ├── tests/                         # Scénarios de validation
 ├── livrables/                     # Support PowerPoint pour l’oral
 ├── DOCUMENTATION.md               # Architecture et choix défendables à l’oral

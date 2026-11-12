@@ -16,7 +16,7 @@ $config = [
     'db_password' => getenv('VLS_DB_PASSWORD') ?: '',
 ];
 
-$localConfigPath = dirname(__DIR__) . '/config.local.php';
+$localConfigPath = dirname(__DIR__, 2) . '/config.local.php';
 if (is_file($localConfigPath)) {
     $localConfig = require $localConfigPath;
     if (is_array($localConfig)) {
