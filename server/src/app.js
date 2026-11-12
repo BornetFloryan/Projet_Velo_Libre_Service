@@ -18,7 +18,7 @@ app.use('/api/operator', require('./routes/operator-read.routes'));
 app.use('/api/operator', require('./routes/operator.routes'));
 app.use('/api/common', require('./routes/common.routes'));
 
-const clientPath = path.resolve(__dirname, '../../client');
+const clientPath = path.resolve(__dirname, '../../client/dist');
 app.use(express.static(clientPath));
 app.get('*', (req, res) => res.sendFile(path.join(clientPath, 'index.html')));
 app.use((error, req, res, next) => res.status(500).json({ error: businessMessage(error) }));
