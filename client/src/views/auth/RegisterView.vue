@@ -32,7 +32,8 @@ async function submit() {
           <label>Nom<input v-model="store.register.nom" required></label>
         </div>
         <label>Adresse e-mail<input v-model="store.register.email" type="email" required></label>
-        <label>Mot de passe <small>8 caractères minimum</small><input v-model="store.register.password" type="password" minlength="8" required></label>
+        <label>Mot de passe <small>8 caractères minimum</small><input v-model="store.register.password" type="password"
+            minlength="8" required></label>
         <button class="primary wide">Créer mon compte</button>
       </form>
       <RouterLink class="link centered" to="/connexion">Déjà inscrit ? Se connecter</RouterLink>

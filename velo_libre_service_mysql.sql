@@ -267,23 +267,58 @@ CREATE TABLE IF NOT EXISTS historique_etat (
 -- INDEX : REQUETES FREQUENTES
 -- ============================================================
 
+-- Bornes d'une station, filtrées par état disponible ou hors service.
 CREATE INDEX idx_borne_station_etat ON borne (id_station, etat);
+
+-- Abonnements d'un usager, affichés par période.
 CREATE INDEX idx_abonnement_usager_periode ON abonnement (id_usager, date_debut, date_fin);
+
+-- Recherche de vélos disponibles selon leur catégorie.
 CREATE INDEX idx_velo_etat_categorie ON velo (etat, id_categorie);
+
+-- Événement : réservations actives à expirer après quinze minutes.
 CREATE INDEX idx_reservation_expiration ON reservation (statut, date_reservation);
+
+-- Vérification d'une réservation active pour un vélo donné.
 CREATE INDEX idx_reservation_velo_active ON reservation (numero_serie, statut);
+
+-- Historique des trajets d'un usager, du plus récent au plus ancien.
 CREATE INDEX idx_trajet_usager_date ON trajet (id_usager, date_depart);
+
+-- Vérification d'un trajet encore ouvert pour un vélo.
 CREATE INDEX idx_trajet_velo_ouvert ON trajet (numero_serie, date_arrivee);
+
+-- Recherche des trajets à payer ou déjà payés.
 CREATE INDEX idx_trajet_statut_paiement ON trajet (statut_paiement, date_depart);
+
+-- Historique du portefeuille d'un usager, classé par date.
 CREATE INDEX idx_operation_usager_date ON operation_portefeuille (id_usager, date_heure);
+
+-- Signalements d'une station, les plus récents en premier.
 CREATE INDEX idx_signalement_station_date ON signalement (id_station, date_detection);
+
+-- Signalements concernant un vélo, les plus récents en premier.
 CREATE INDEX idx_signalement_velo_date ON signalement (numero_serie, date_detection);
+
+-- Recherche des interventions liées à un signalement.
 CREATE INDEX idx_intervention_signalement ON intervention (id_signalement);
+
+-- Interventions réalisées par un opérateur, classées par date.
 CREATE INDEX idx_intervention_operateur_date ON intervention (id_operateur, date_debut);
+
+-- Tournées réalisées par un opérateur, classées par date.
 CREATE INDEX idx_tournee_operateur_date ON tournee_regulation (id_operateur, date_tournee);
+
+-- Mouvements enregistrés pour une tournée.
 CREATE INDEX idx_mouvement_tournee_date ON mouvement_regulation (id_tournee, date_heure);
+
+-- Mouvements de régulation d'une station, classés par date.
 CREATE INDEX idx_mouvement_station_date ON mouvement_regulation (id_station, date_heure);
+
+-- Historique des positions d'un vélo, du plus récent au plus ancien.
 CREATE INDEX idx_historique_position_velo_date ON historique_position (numero_serie, date_heure);
+
+-- Historique des changements d'état d'un vélo, du plus récent au plus ancien.
 CREATE INDEX idx_historique_etat_velo_date ON historique_etat (numero_serie, date_heure);
 
 -- ============================================================

@@ -39,7 +39,8 @@ async function submit() {
       <aside class="demo-box">
         <b>Comptes de démonstration</b>
         <span><b>Usager</b> · alice.martin@example.test · <code>password</code> — emprunts et compte</span>
-        <span><b>Maintenance</b> · camille.leroy@example.test · <code>password</code> — signalements et interventions</span>
+        <span><b>Maintenance</b> · camille.leroy@example.test · <code>password</code> — signalements et
+          interventions</span>
         <span><b>Régulation</b> · nolan.robert@example.test · <code>password</code> — tournées et déplacements</span>
         <span><b>Administration</b> · sarah.thomas@example.test · <code>password</code> — gestion complète</span>
       </aside>

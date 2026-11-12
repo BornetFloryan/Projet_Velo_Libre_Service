@@ -200,10 +200,3 @@ INSERT INTO mouvement_regulation (
 UPDATE velo
 SET id_borne_actuelle = 5
 WHERE numero_serie = 'VELO-007';
-
--- Requêtes de vérification conseillées après import :
--- SELECT * FROM v_etat_station;
--- SELECT * FROM v_statistiques_journalieres;
--- SELECT * FROM v_recettes_par_formule;
--- SELECT * FROM historique_etat ORDER BY date_heure DESC;
--- SELECT * FROM historique_position ORDER BY date_heure DESC;

@@ -1,12 +1,12 @@
-const mysql = require('mysql2/promise');
-const config = require('./config');
+const mysql = require("mysql2/promise");
+const config = require("./config");
 
 const pool = mysql.createPool({
   ...config.database,
   waitForConnections: true,
   connectionLimit: 10,
-  charset: 'utf8mb4',
-  namedPlaceholders: true
+  charset: "utf8mb4",
+  namedPlaceholders: true,
 });
 
 async function one(sql, params = {}) {

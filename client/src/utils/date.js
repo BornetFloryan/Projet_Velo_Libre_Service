@@ -1,4 +1,4 @@
-const paris = 'Europe/Paris';
+const paris = "Europe/Paris";
 
 function asDate(value) {
   if (!value) return null;
@@ -8,10 +8,21 @@ function asDate(value) {
 
 export function formatDate(value) {
   const date = asDate(value);
-  return date ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: paris }).format(date) : '—';
+  return date
+    ? new Intl.DateTimeFormat("fr-FR", {
+        dateStyle: "medium",
+        timeZone: paris,
+      }).format(date)
+    : "—";
 }
 
 export function formatDateTime(value) {
   const date = asDate(value);
-  return date ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: paris }).format(date) : '—';
+  return date
+    ? new Intl.DateTimeFormat("fr-FR", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: paris,
+      }).format(date)
+    : "—";
 }

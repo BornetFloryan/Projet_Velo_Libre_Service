@@ -6,4 +6,6 @@ const store = useAppStore();
 onMounted(() => store.boot());
 </script>
 
-<template><RouterView /></template>
+<template>
+    <RouterView />
+</template>
