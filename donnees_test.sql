@@ -236,3 +236,70 @@ INSERT INTO mouvement_regulation (
 UPDATE velo
 SET id_borne_actuelle = 5
 WHERE numero_serie = 'VELO-007';
+
+-- ============================================================
+-- VOLUME DE TEST
+-- Une seule importation suffit pour obtenir des réservations et historiques
+-- en quantité suffisante pour observer les index avec EXPLAIN.
+-- Les réservations générées sont terminées : elles ne perturbent pas la démo.
+-- ============================================================
+
+DELIMITER $$
+
+CREATE PROCEDURE charger_volume_test()
+BEGIN
+    DECLARE v_compteur INT DEFAULT 1;
+    DECLARE v_velo VARCHAR(50);
+    DECLARE v_usager INT;
+
+    WHILE v_compteur <= 5000 DO
+        SET v_velo = CONCAT('SIM-', LPAD(1 + MOD(v_compteur - 1, 12), 3, '0'));
+        SET v_usager = 5 + MOD(v_compteur - 1, 8);
+
+        INSERT INTO reservation (
+            date_reservation, statut, id_usager, numero_serie
+        ) VALUES (
+            NOW() - INTERVAL v_compteur MINUTE,
+            CASE MOD(v_compteur, 3)
+                WHEN 0 THEN 'expiree'
+                WHEN 1 THEN 'annulee'
+                ELSE 'utilisee'
+            END,
+            v_usager,
+            v_velo
+        );
+
+        INSERT INTO historique_position (
+            date_heure, ancienne_borne, nouvelle_borne, type_deplacement, numero_serie
+        ) VALUES (
+            NOW() - INTERVAL v_compteur * 3 MINUTE,
+            1 + MOD(v_compteur - 1, 32),
+            1 + MOD(v_compteur + 6, 32),
+            'Mouvement historique de démonstration',
+            v_velo
+        );
+
+        INSERT INTO historique_etat (
+            date_heure, ancien_etat, nouvel_etat, motif_changement, numero_serie
+        ) VALUES (
+            NOW() - INTERVAL v_compteur * 3 MINUTE,
+            IF(MOD(v_compteur, 2) = 0, 'disponible', 'maintenance'),
+            IF(MOD(v_compteur, 2) = 0, 'maintenance', 'disponible'),
+            'Historique de démonstration',
+            v_velo
+        );
+
+        SET v_compteur = v_compteur + 1;
+    END WHILE;
+END$$
+
+DELIMITER ;
+
+START TRANSACTION;
+CALL charger_volume_test();
+DROP PROCEDURE charger_volume_test;
+COMMIT;
+
+-- Une réservation active visible immédiatement dans l'interface.
+INSERT INTO reservation (date_reservation, statut, id_usager, numero_serie)
+VALUES (NOW() - INTERVAL 4 MINUTE, 'active', 5, 'SIM-012');
