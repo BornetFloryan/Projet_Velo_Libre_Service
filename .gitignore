@@ -1,6 +1,7 @@
 # Configuration locale de l'application (identifiants MySQL éventuels)
 .env
 node_modules/
+client/dist/
 
 # Fichiers temporaires PHP
 web/.phpserver.log

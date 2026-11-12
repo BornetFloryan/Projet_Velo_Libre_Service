@@ -1,9 +1,9 @@
+import { defineStore } from 'pinia';
 import { request } from '../services/api.service.js';
 import { authService } from '../services/auth.service.js';
 import { userService } from '../services/user.service.js';
 import { operatorService } from '../services/operator.service.js';
 
-const { defineStore } = window.Pinia;
 export const useAppStore = defineStore('app', {
   state: () => ({ actor: null, view: 'dashboard', data: {}, form: {}, loading: false, error: '', success: '', authMode: 'login', login: { email: '', password: '' }, register: { prenom: '', nom: '', email: '', password: '' } }),
   getters: { isOperator: state => state.actor?.type === 'operateur', title: state => ({ dashboard: 'Tableau de bord', stations: 'Stations', trips: 'Mes trajets', account: 'Mon compte', operations: 'Opérations', statistics: 'Statistiques' }[state.view] || 'VéloLibre') },
