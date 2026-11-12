@@ -48,6 +48,8 @@ select { cursor: pointer; }
 .auth-form-panel label { margin-bottom: 15px; }
 .demo-box { display: flex; flex-direction: column; gap: 4px; margin-top: 28px; padding: 15px; border: 1px solid #d8ebe5; border-radius: 11px; background: #f0f8f5; color: #456068; font-size: .84rem; }
 .demo-box b { color: #1c4441; }
+.demo-box span { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }
+.demo-box small { display: block; width: 100%; color: #617a7a; }
 .centered { display: block; width: fit-content; margin: 22px auto 0; }
 
 .app-shell { min-height: 100vh; }

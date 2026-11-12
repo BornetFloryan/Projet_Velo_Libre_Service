@@ -38,8 +38,10 @@ async function submit() {
       <RouterLink class="link centered" to="/inscription">Pas encore de compte ? Créer un compte usager</RouterLink>
       <aside class="demo-box">
         <b>Comptes de démonstration</b>
-        <span>alice.martin@example.test · <code>password</code></span>
-        <span>sarah.thomas@example.test · administration · <code>password</code></span>
+        <span><b>Usager</b> — alice.martin@example.test · <code>password</code><small>Emprunter, réserver, restituer et gérer son compte.</small></span>
+        <span><b>Maintenance</b> — camille.leroy@example.test · <code>password</code><small>Traiter les signalements, créer et clôturer des interventions, gérer l’état des vélos.</small></span>
+        <span><b>Régulation</b> — nolan.robert@example.test · <code>password</code><small>Planifier des tournées et enregistrer les déplacements de vélos entre stations.</small></span>
+        <span><b>Administration</b> — sarah.thomas@example.test · <code>password</code><small>Accéder à l’ensemble des fonctionnalités, statistiques et réinitialisation de la base.</small></span>
       </aside>
     </section>
   </main>
