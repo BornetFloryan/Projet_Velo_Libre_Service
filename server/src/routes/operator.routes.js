@@ -1,6 +1,6 @@
 const express = require('express');
-const { many, value, pool } = require('./db');
-const { requireOperator, businessMessage } = require('./http');
+const { many, value, pool } = require('../db');
+const { requireOperator, businessMessage } = require('../utils/http');
 
 const router = express.Router();
 router.use(requireOperator());

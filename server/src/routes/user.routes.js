@@ -1,6 +1,6 @@
 const express = require('express');
-const { one, many, value, pool } = require('./db');
-const { requireUser, businessMessage } = require('./http');
+const { one, many, value, pool } = require('../db');
+const { requireUser, businessMessage } = require('../utils/http');
 
 const router = express.Router();
 router.use(requireUser);

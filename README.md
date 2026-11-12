@@ -18,7 +18,7 @@ Application de gestion d’un réseau de vélos en libre-service. Le dépôt con
 Prérequis : Node.js 18 ou supérieur et MySQL (XAMPP convient pour MySQL).
 
 1. Démarrer MySQL dans XAMPP.
-2. Importer, dans cet ordre, `velo_libre_service_mysql.sql` puis `donnees_test.sql` dans phpMyAdmin.
+2. Importer, dans cet ordre, `velo_libre_service_mysql.sql` puis `donnees_test.sql` dans votre outil MySQL.
 3. Activer l’évènement d’expiration des réservations :
 
 ```sql
@@ -44,7 +44,7 @@ npm start
 | Régulation | `nolan.robert@example.test` | `password` |
 | Administration | `sarah.thomas@example.test` | `password` |
 
-Les mots de passe ne sont présents que pour le jeu de démonstration. Ils sont stockés avec `password_hash()` / bcrypt dans la base.
+Les mots de passe ne sont présents que pour le jeu de démonstration. Ils sont stockés avec bcrypt dans la base.
 
 ## Structure du dépôt
 
@@ -52,7 +52,6 @@ Les mots de passe ne sont présents que pour le jeu de démonstration. Ils sont 
 .
 ├── velo_libre_service_mysql.sql   # Schéma, contraintes, vues, triggers, fonction, événement
 ├── donnees_test.sql               # Jeu de données de démonstration
-├── web/
 ├── server/src/                    # API Express, routes, accès MySQL et sécurité
 ├── client/                        # SPA Vue 3 et composants de l’interface
 ├── package.json                   # Dépendances et scripts Node.js
@@ -60,7 +59,7 @@ Les mots de passe ne sont présents que pour le jeu de démonstration. Ils sont 
 ├── livrables/                     # Support PowerPoint pour l’oral
 ├── DOCUMENTATION.md               # Architecture et choix défendables à l’oral
 ├── PRESENTATION_10_MIN.md         # Déroulé du support oral
-└── lancer_interface.bat           # Lancement simple sous XAMPP / Windows
+└── lancer_interface.bat           # Lancement simple sous Windows
 ```
 
 ## Dépôt collaboratif

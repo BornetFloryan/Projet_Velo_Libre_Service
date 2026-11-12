@@ -2,18 +2,18 @@ const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
 const config = require('./config');
-const { businessMessage } = require('./http');
+const { businessMessage } = require('./utils/http');
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({ secret: config.sessionSecret, resave: false, saveUninitialized: false, cookie: { httpOnly: true, sameSite: 'lax' } }));
 
-app.use('/api/auth', require('./auth.routes'));
-app.use('/api/network', require('./network.routes'));
-app.use('/api/user', require('./user.routes'));
-app.use('/api/operator', require('./operator.routes'));
-app.get('/api/health', async (req, res) => { try { const { value } = require('./db'); await value('SELECT 1'); res.json({ ok: true }); } catch (e) { res.status(503).json({ ok: false, error: businessMessage(e) }); } });
+app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/network', require('./routes/network.routes'));
+app.use('/api/user', require('./routes/user.routes'));
+app.use('/api/operator', require('./routes/operator.routes'));
+app.use('/api/common', require('./routes/common.routes'));
 
 const clientPath = path.resolve(__dirname, '../../client');
 app.use(express.static(clientPath));

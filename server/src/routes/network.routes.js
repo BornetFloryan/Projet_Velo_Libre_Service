@@ -1,6 +1,6 @@
 const express = require('express');
-const { many } = require('./db');
-const { requireActor } = require('./http');
+const { many } = require('../db');
+const { requireActor } = require('../utils/http');
 
 const router = express.Router();
 router.use(requireActor);

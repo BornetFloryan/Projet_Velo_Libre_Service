@@ -1,5 +1,4 @@
 # Configuration locale de l'application (identifiants MySQL éventuels)
-web/config.local.php
 .env
 node_modules/
 

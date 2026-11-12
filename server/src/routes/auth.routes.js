@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { one } = require('./db');
-const { businessMessage } = require('./http');
+const { one } = require('../db');
+const { businessMessage } = require('../utils/http');
 
 const router = express.Router();
 
