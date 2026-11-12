@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import AccountView from "../views/user/AccountView.vue";
+import BikeHistoryView from "../views/operator/BikeHistoryView.vue";
 import LoginView from "../views/auth/LoginView.vue";
 import OperationsView from "../views/operator/OperationsView.vue";
 import OperatorDashboardView from "../views/operator/OperatorDashboardView.vue";
@@ -38,6 +39,11 @@ const router = createRouter({
     {
       path: "/operateur/statistiques",
       component: StatisticsView,
+      meta: { role: "operateur" },
+    },
+    {
+      path: "/operateur/historique",
+      component: BikeHistoryView,
       meta: { role: "operateur" },
     },
     { path: "/:pathMatch(.*)*", redirect: "/connexion" },

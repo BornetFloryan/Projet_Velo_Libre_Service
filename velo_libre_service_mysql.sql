@@ -1,5 +1,3 @@
--- Projet BD70 - Vélo libre-service
--- Cible : MySQL 8.0+ (et non PostgreSQL)
 -- Ce script crée le schéma, les contraintes, les index, les triggers et un événement planifié.
 
 CREATE DATABASE IF NOT EXISTS velo_libre_service
@@ -13,15 +11,15 @@ USE velo_libre_service;
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS categorie_velo (
-    id_categorie INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_categorie INT AUTO_INCREMENT PRIMARY KEY,
     libelle VARCHAR(30) NOT NULL,
     CONSTRAINT uq_categorie_velo_libelle UNIQUE (libelle),
     CONSTRAINT ck_categorie_velo_libelle
         CHECK (libelle IN ('mecanique', 'electrique'))
-) ENGINE = InnoDB;
+);
 
 CREATE TABLE IF NOT EXISTS formule (
-    id_formule INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_formule INT AUTO_INCREMENT PRIMARY KEY,
     nom VARCHAR(80) NOT NULL,
     prix_base DECIMAL(8,2) NOT NULL DEFAULT 0.00,
     duree_gratuite_minutes INT UNSIGNED NOT NULL DEFAULT 0,
@@ -31,10 +29,10 @@ CREATE TABLE IF NOT EXISTS formule (
     CONSTRAINT ck_formule_prix_base CHECK (prix_base >= 0),
     CONSTRAINT ck_formule_tarif CHECK (tarif_par_tranche >= 0),
     CONSTRAINT ck_formule_supplement CHECK (supplement_electrique >= 0)
-) ENGINE = InnoDB;
+);
 
 CREATE TABLE IF NOT EXISTS station (
-    id_station INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_station INT AUTO_INCREMENT PRIMARY KEY,
     nom VARCHAR(100) NOT NULL,
     adresse VARCHAR(255) NOT NULL,
     latitude DECIMAL(9,6) NOT NULL,
@@ -49,23 +47,22 @@ CREATE TABLE IF NOT EXISTS station (
     CONSTRAINT ck_station_longitude CHECK (longitude BETWEEN -180 AND 180),
     CONSTRAINT ck_station_seuil_velos CHECK (seuil_velos_min <= capacite_bornes),
     CONSTRAINT ck_station_seuil_bornes CHECK (seuil_bornes_min <= capacite_bornes)
-) ENGINE = InnoDB;
+);
 
 CREATE TABLE IF NOT EXISTS borne (
-    id_borne INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_borne INT AUTO_INCREMENT PRIMARY KEY,
     etat ENUM('disponible', 'hors_service', 'maintenance') NOT NULL DEFAULT 'disponible',
-    id_station INT UNSIGNED NOT NULL,
+    id_station INT NOT NULL,
     CONSTRAINT fk_borne_station
-        FOREIGN KEY (id_station) REFERENCES station(id_station),
-    INDEX idx_borne_station_etat (id_station, etat)
-) ENGINE = InnoDB;
+        FOREIGN KEY (id_station) REFERENCES station(id_station)
+);
 
 -- ============================================================
 -- UTILISATEURS ET ABONNEMENTS
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS usager (
-    id_usager INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_usager INT AUTO_INCREMENT PRIMARY KEY,
     nom VARCHAR(80) NOT NULL,
     prenom VARCHAR(80) NOT NULL,
     email VARCHAR(255) NOT NULL,
@@ -74,21 +71,20 @@ CREATE TABLE IF NOT EXISTS usager (
     tarif_reduit BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT uq_usager_email UNIQUE (email),
     CONSTRAINT ck_usager_solde CHECK (solde_portefeuille >= 0)
-) ENGINE = InnoDB;
+);
 
 CREATE TABLE IF NOT EXISTS abonnement (
-    id_abonnement INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_abonnement INT AUTO_INCREMENT PRIMARY KEY,
     date_debut DATE NOT NULL,
     date_fin DATE NOT NULL,
-    id_usager INT UNSIGNED NOT NULL,
-    id_formule INT UNSIGNED NOT NULL,
+    id_usager INT NOT NULL,
+    id_formule INT NOT NULL,
     CONSTRAINT fk_abonnement_usager
         FOREIGN KEY (id_usager) REFERENCES usager(id_usager),
     CONSTRAINT fk_abonnement_formule
         FOREIGN KEY (id_formule) REFERENCES formule(id_formule),
-    CONSTRAINT ck_abonnement_dates CHECK (date_fin >= date_debut),
-    INDEX idx_abonnement_usager_periode (id_usager, date_debut, date_fin)
-) ENGINE = InnoDB;
+    CONSTRAINT ck_abonnement_dates CHECK (date_fin >= date_debut)
+);
 
 -- ============================================================
 -- FLOTTE, RESERVATIONS ET TRAJETS
@@ -98,35 +94,32 @@ CREATE TABLE IF NOT EXISTS velo (
     numero_serie VARCHAR(50) PRIMARY KEY,
     etat ENUM('disponible', 'reserve', 'en_cours', 'maintenance', 'atelier', 'hors_service')
         NOT NULL DEFAULT 'disponible',
-    niveau_batterie INT UNSIGNED NULL,
+    niveau_batterie INT NULL,
     date_mise_service DATE NOT NULL,
-    id_categorie INT UNSIGNED NOT NULL,
-    id_borne_actuelle INT UNSIGNED NULL,
+    id_categorie INT NOT NULL,
+    id_borne_actuelle INT NULL,
     CONSTRAINT fk_velo_categorie
         FOREIGN KEY (id_categorie) REFERENCES categorie_velo(id_categorie),
     CONSTRAINT fk_velo_borne
         FOREIGN KEY (id_borne_actuelle) REFERENCES borne(id_borne),
     CONSTRAINT uq_velo_borne_actuelle UNIQUE (id_borne_actuelle),
-    CONSTRAINT ck_velo_batterie CHECK (niveau_batterie IS NULL OR niveau_batterie BETWEEN 0 AND 100),
-    INDEX idx_velo_etat_categorie (etat, id_categorie)
-) ENGINE = InnoDB;
+    CONSTRAINT ck_velo_batterie CHECK (niveau_batterie IS NULL OR niveau_batterie BETWEEN 0 AND 100)
+);
 
 CREATE TABLE IF NOT EXISTS reservation (
-    id_reservation INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_reservation INT AUTO_INCREMENT PRIMARY KEY,
     date_reservation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     statut ENUM('active', 'utilisee', 'expiree', 'annulee') NOT NULL DEFAULT 'active',
-    id_usager INT UNSIGNED NOT NULL,
+    id_usager INT NOT NULL,
     numero_serie VARCHAR(50) NOT NULL,
     CONSTRAINT fk_reservation_usager
         FOREIGN KEY (id_usager) REFERENCES usager(id_usager),
     CONSTRAINT fk_reservation_velo
-        FOREIGN KEY (numero_serie) REFERENCES velo(numero_serie),
-    INDEX idx_reservation_expiration (statut, date_reservation),
-    INDEX idx_reservation_velo_active (numero_serie, statut)
-) ENGINE = InnoDB;
+        FOREIGN KEY (numero_serie) REFERENCES velo(numero_serie)
+);
 
 CREATE TABLE IF NOT EXISTS trajet (
-    id_trajet INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_trajet INT AUTO_INCREMENT PRIMARY KEY,
     date_depart DATETIME NOT NULL,
     date_arrivee DATETIME NULL,
     cout_facture DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -134,12 +127,12 @@ CREATE TABLE IF NOT EXISTS trajet (
     note_evaluation INT UNSIGNED NULL,
     statut_paiement ENUM('en_attente', 'payee', 'annulee') NOT NULL DEFAULT 'en_attente',
     date_paiement DATETIME NULL,
-    id_usager INT UNSIGNED NOT NULL,
+    id_usager INT NOT NULL,
     numero_serie VARCHAR(50) NOT NULL,
-    id_station_depart INT UNSIGNED NOT NULL,
-    id_station_arrivee INT UNSIGNED NULL,
-    id_borne_depart INT UNSIGNED NOT NULL,
-    id_borne_arrivee INT UNSIGNED NULL,
+    id_station_depart INT NOT NULL,
+    id_station_arrivee INT NULL,
+    id_borne_depart INT NOT NULL,
+    id_borne_arrivee INT NULL,
     CONSTRAINT fk_trajet_usager
         FOREIGN KEY (id_usager) REFERENCES usager(id_usager),
     CONSTRAINT fk_trajet_velo
@@ -155,111 +148,100 @@ CREATE TABLE IF NOT EXISTS trajet (
     CONSTRAINT ck_trajet_dates
         CHECK (date_arrivee IS NULL OR date_arrivee >= date_depart),
     CONSTRAINT ck_trajet_cout CHECK (cout_facture >= 0),
-    CONSTRAINT ck_trajet_note CHECK (note_evaluation IS NULL OR note_evaluation BETWEEN 1 AND 5),
-    INDEX idx_trajet_usager_date (id_usager, date_depart),
-    INDEX idx_trajet_velo_ouvert (numero_serie, date_arrivee),
-    INDEX idx_trajet_statut_paiement (statut_paiement, date_depart)
-) ENGINE = InnoDB;
+    CONSTRAINT ck_trajet_note CHECK (note_evaluation IS NULL OR note_evaluation BETWEEN 1 AND 5)
+);
 
 CREATE TABLE IF NOT EXISTS operation_portefeuille (
-    id_operation INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_operation INT AUTO_INCREMENT PRIMARY KEY,
     date_heure DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     nature ENUM('rechargement', 'paiement_trajet', 'remboursement') NOT NULL,
     montant DECIMAL(10,2) NOT NULL,
-    id_usager INT UNSIGNED NOT NULL,
-    id_trajet INT UNSIGNED NULL,
+    id_usager INT NOT NULL,
+    id_trajet INT NULL,
     CONSTRAINT fk_operation_usager
         FOREIGN KEY (id_usager) REFERENCES usager(id_usager),
     CONSTRAINT fk_operation_trajet
         FOREIGN KEY (id_trajet) REFERENCES trajet(id_trajet),
     CONSTRAINT uq_operation_paiement_trajet UNIQUE (id_trajet),
-    CONSTRAINT ck_operation_montant CHECK (montant <> 0),
-    INDEX idx_operation_usager_date (id_usager, date_heure)
-) ENGINE = InnoDB;
+    CONSTRAINT ck_operation_montant CHECK (montant <> 0)
+);
 
 -- ============================================================
 -- SIGNALEMENTS, MAINTENANCE ET REGULATION
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS signalement (
-    id_signalement INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_signalement INT AUTO_INCREMENT PRIMARY KEY,
     date_detection DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     description TEXT NOT NULL,
-    id_usager INT UNSIGNED NOT NULL,
+    id_usager INT NOT NULL,
     numero_serie VARCHAR(50) NOT NULL,
-    id_station INT UNSIGNED NOT NULL,
+    id_station INT NOT NULL,
     CONSTRAINT fk_signalement_usager
         FOREIGN KEY (id_usager) REFERENCES usager(id_usager),
     CONSTRAINT fk_signalement_velo
         FOREIGN KEY (numero_serie) REFERENCES velo(numero_serie),
     CONSTRAINT fk_signalement_station
-        FOREIGN KEY (id_station) REFERENCES station(id_station),
-    INDEX idx_signalement_station_date (id_station, date_detection),
-    INDEX idx_signalement_velo_date (numero_serie, date_detection)
-) ENGINE = InnoDB;
+        FOREIGN KEY (id_station) REFERENCES station(id_station)
+);
 
 CREATE TABLE IF NOT EXISTS operateur (
-    id_operateur INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_operateur INT AUTO_INCREMENT PRIMARY KEY,
     nom_prenom VARCHAR(160) NOT NULL,
     email VARCHAR(255) NOT NULL,
     mot_de_passe_hash VARCHAR(255) NOT NULL,
     role_operateur ENUM('maintenance', 'regulation', 'administration') NOT NULL,
     CONSTRAINT uq_operateur_email UNIQUE (email)
-) ENGINE = InnoDB;
+);
 
 CREATE TABLE IF NOT EXISTS intervention (
-    id_intervention INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_intervention INT AUTO_INCREMENT PRIMARY KEY,
     date_debut DATETIME NOT NULL,
     date_fin DATETIME NULL,
     type_action VARCHAR(120) NOT NULL,
-    id_signalement INT UNSIGNED NOT NULL,
-    id_operateur INT UNSIGNED NOT NULL,
+    id_signalement INT NOT NULL,
+    id_operateur INT NOT NULL,
     CONSTRAINT fk_intervention_signalement
         FOREIGN KEY (id_signalement) REFERENCES signalement(id_signalement),
     CONSTRAINT fk_intervention_operateur
         FOREIGN KEY (id_operateur) REFERENCES operateur(id_operateur),
     CONSTRAINT ck_intervention_dates
-        CHECK (date_fin IS NULL OR date_fin >= date_debut),
-    INDEX idx_intervention_signalement (id_signalement),
-    INDEX idx_intervention_operateur_date (id_operateur, date_debut)
-) ENGINE = InnoDB;
+        CHECK (date_fin IS NULL OR date_fin >= date_debut)
+);
 
 CREATE TABLE IF NOT EXISTS tournee_regulation (
-    id_tournee INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_tournee INT AUTO_INCREMENT PRIMARY KEY,
     date_tournee DATE NOT NULL,
     immatriculation_vehicule VARCHAR(20) NOT NULL,
-    id_operateur INT UNSIGNED NOT NULL,
+    id_operateur INT NOT NULL,
     CONSTRAINT fk_tournee_operateur
-        FOREIGN KEY (id_operateur) REFERENCES operateur(id_operateur),
-    INDEX idx_tournee_operateur_date (id_operateur, date_tournee)
-) ENGINE = InnoDB;
+        FOREIGN KEY (id_operateur) REFERENCES operateur(id_operateur)
+);
 
 CREATE TABLE IF NOT EXISTS mouvement_regulation (
-    id_mouvement INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_mouvement INT AUTO_INCREMENT PRIMARY KEY,
     date_heure DATETIME NOT NULL,
     nature ENUM('retrait', 'depot') NOT NULL,
-    id_tournee INT UNSIGNED NOT NULL,
+    id_tournee INT NOT NULL,
     numero_serie VARCHAR(50) NOT NULL,
-    id_station INT UNSIGNED NOT NULL,
+    id_station INT NOT NULL,
     CONSTRAINT fk_mouvement_tournee
         FOREIGN KEY (id_tournee) REFERENCES tournee_regulation(id_tournee),
     CONSTRAINT fk_mouvement_velo
         FOREIGN KEY (numero_serie) REFERENCES velo(numero_serie),
     CONSTRAINT fk_mouvement_station
-        FOREIGN KEY (id_station) REFERENCES station(id_station),
-    INDEX idx_mouvement_tournee_date (id_tournee, date_heure),
-    INDEX idx_mouvement_station_date (id_station, date_heure)
-) ENGINE = InnoDB;
+        FOREIGN KEY (id_station) REFERENCES station(id_station)
+);
 
 -- ============================================================
 -- HISTORISATION
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS historique_position (
-    id_historique_position INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_historique_position INT AUTO_INCREMENT PRIMARY KEY,
     date_heure DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    ancienne_borne INT UNSIGNED NULL,
-    nouvelle_borne INT UNSIGNED NULL,
+    ancienne_borne INT NULL,
+    nouvelle_borne INT NULL,
     type_deplacement VARCHAR(80) NOT NULL,
     numero_serie VARCHAR(50) NOT NULL,
     CONSTRAINT fk_historique_position_velo
@@ -267,21 +249,42 @@ CREATE TABLE IF NOT EXISTS historique_position (
     CONSTRAINT fk_historique_position_ancienne_borne
         FOREIGN KEY (ancienne_borne) REFERENCES borne(id_borne),
     CONSTRAINT fk_historique_position_nouvelle_borne
-        FOREIGN KEY (nouvelle_borne) REFERENCES borne(id_borne),
-    INDEX idx_historique_position_velo_date (numero_serie, date_heure)
-) ENGINE = InnoDB;
+        FOREIGN KEY (nouvelle_borne) REFERENCES borne(id_borne)
+);
 
 CREATE TABLE IF NOT EXISTS historique_etat (
-    id_historique_etat INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_historique_etat INT AUTO_INCREMENT PRIMARY KEY,
     date_heure DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ancien_etat VARCHAR(30) NULL,
     nouvel_etat VARCHAR(30) NOT NULL,
     motif_changement VARCHAR(150) NOT NULL,
     numero_serie VARCHAR(50) NOT NULL,
     CONSTRAINT fk_historique_etat_velo
-        FOREIGN KEY (numero_serie) REFERENCES velo(numero_serie),
-    INDEX idx_historique_etat_velo_date (numero_serie, date_heure)
-) ENGINE = InnoDB;
+        FOREIGN KEY (numero_serie) REFERENCES velo(numero_serie)
+);
+
+-- ============================================================
+-- INDEX : REQUETES FREQUENTES
+-- ============================================================
+
+CREATE INDEX idx_borne_station_etat ON borne (id_station, etat);
+CREATE INDEX idx_abonnement_usager_periode ON abonnement (id_usager, date_debut, date_fin);
+CREATE INDEX idx_velo_etat_categorie ON velo (etat, id_categorie);
+CREATE INDEX idx_reservation_expiration ON reservation (statut, date_reservation);
+CREATE INDEX idx_reservation_velo_active ON reservation (numero_serie, statut);
+CREATE INDEX idx_trajet_usager_date ON trajet (id_usager, date_depart);
+CREATE INDEX idx_trajet_velo_ouvert ON trajet (numero_serie, date_arrivee);
+CREATE INDEX idx_trajet_statut_paiement ON trajet (statut_paiement, date_depart);
+CREATE INDEX idx_operation_usager_date ON operation_portefeuille (id_usager, date_heure);
+CREATE INDEX idx_signalement_station_date ON signalement (id_station, date_detection);
+CREATE INDEX idx_signalement_velo_date ON signalement (numero_serie, date_detection);
+CREATE INDEX idx_intervention_signalement ON intervention (id_signalement);
+CREATE INDEX idx_intervention_operateur_date ON intervention (id_operateur, date_debut);
+CREATE INDEX idx_tournee_operateur_date ON tournee_regulation (id_operateur, date_tournee);
+CREATE INDEX idx_mouvement_tournee_date ON mouvement_regulation (id_tournee, date_heure);
+CREATE INDEX idx_mouvement_station_date ON mouvement_regulation (id_station, date_heure);
+CREATE INDEX idx_historique_position_velo_date ON historique_position (numero_serie, date_heure);
+CREATE INDEX idx_historique_etat_velo_date ON historique_etat (numero_serie, date_heure);
 
 -- ============================================================
 -- VUES : EXPLOITATION ET STATISTIQUES
@@ -340,7 +343,7 @@ DELIMITER $$
 
 -- Calcule le prix d'un trajet avec la formule active de l'usager.
 CREATE FUNCTION fn_calculer_cout_trajet (
-    p_id_usager INT UNSIGNED,
+    p_id_usager INT ,
     p_numero_serie VARCHAR(50),
     p_date_depart DATETIME,
     p_date_arrivee DATETIME
@@ -726,7 +729,7 @@ DELIMITER ;
 
 -- ============================================================
 -- EVENEMENT : expiration des réservations après 15 minutes
--- L'administrateur MySQL doit avoir activé event_scheduler=ON.
+-- Activé event_scheduler=ON.
 -- ============================================================
 
 DELIMITER $$
@@ -756,5 +759,4 @@ END$$
 
 DELIMITER ;
 
--- Vérification de l'événement (à exécuter après SET GLOBAL event_scheduler = ON) :
--- SHOW EVENTS FROM velo_libre_service;
+-- SHOW EVENTS FROM velo_libre_service; (à exécuter après SET GLOBAL event_scheduler = ON)
