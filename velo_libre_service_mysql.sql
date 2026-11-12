@@ -287,6 +287,7 @@ CREATE TABLE IF NOT EXISTS historique_etat (
 -- VUES : EXPLOITATION ET STATISTIQUES
 -- ============================================================
 
+-- Résume la disponibilité de chaque station.
 CREATE OR REPLACE VIEW v_etat_station AS
 SELECT s.id_station,
        s.nom,
@@ -308,6 +309,7 @@ LEFT JOIN velo v ON v.id_borne_actuelle = b.id_borne
 LEFT JOIN categorie_velo c ON c.id_categorie = v.id_categorie
 GROUP BY s.id_station, s.nom, s.etat, s.capacite_bornes, s.seuil_velos_min, s.seuil_bornes_min;
 
+-- Donne le nombre de trajets et les recettes par jour.
 CREATE OR REPLACE VIEW v_statistiques_journalieres AS
 SELECT DATE(date_depart) AS jour,
        COUNT(*) AS nombre_trajets,
@@ -317,6 +319,7 @@ FROM trajet
 WHERE date_arrivee IS NOT NULL
 GROUP BY DATE(date_depart);
 
+-- Calcule les recettes liées à chaque formule.
 CREATE OR REPLACE VIEW v_recettes_par_formule AS
 SELECT f.id_formule,
        f.nom AS formule,
@@ -335,6 +338,7 @@ GROUP BY f.id_formule, f.nom;
 
 DELIMITER $$
 
+-- Calcule le prix d'un trajet avec la formule active de l'usager.
 CREATE FUNCTION fn_calculer_cout_trajet (
     p_id_usager INT UNSIGNED,
     p_numero_serie VARCHAR(50),
@@ -397,6 +401,7 @@ DELIMITER ;
 
 DELIMITER $$
 
+-- Ajoute l'état et la position de départ dans les historiques.
 CREATE TRIGGER trg_velo_ai_historique_etat
 AFTER INSERT ON velo
 FOR EACH ROW
@@ -410,6 +415,7 @@ BEGIN
     END IF;
 END$$
 
+-- Historise tout changement d'état ou de borne d'un vélo.
 CREATE TRIGGER trg_velo_au_historiser
 AFTER UPDATE ON velo
 FOR EACH ROW
@@ -434,6 +440,7 @@ BEGIN
     END IF;
 END$$
 
+-- Vérifie qu'une réservation active est possible avant de l'ajouter.
 CREATE TRIGGER trg_reservation_bi_verifier_disponibilite
 BEFORE INSERT ON reservation
 FOR EACH ROW
@@ -474,6 +481,7 @@ BEGIN
     END IF;
 END$$
 
+-- Empêche d'ajouter plus de bornes que la capacité de la station.
 CREATE TRIGGER trg_borne_bi_respecter_capacite
 BEFORE INSERT ON borne
 FOR EACH ROW
@@ -495,6 +503,7 @@ BEGIN
     END IF;
 END$$
 
+-- Passe le vélo à l'état réservé après une réservation active.
 CREATE TRIGGER trg_reservation_ai_reserver_velo
 AFTER INSERT ON reservation
 FOR EACH ROW
@@ -506,6 +515,7 @@ BEGIN
     END IF;
 END$$
 
+-- Libère le vélo quand une réservation est annulée ou expire.
 CREATE TRIGGER trg_reservation_au_liberer_velo
 AFTER UPDATE ON reservation
 FOR EACH ROW
@@ -533,6 +543,7 @@ BEGIN
     END IF;
 END$$
 
+-- Contrôle les règles avant de démarrer un trajet.
 CREATE TRIGGER trg_trajet_bi_controler_emprunt
 BEFORE INSERT ON trajet
 FOR EACH ROW
@@ -611,6 +622,7 @@ BEGIN
     END IF;
 END$$
 
+-- Vérifie la restitution puis calcule durée, coût et paiement.
 CREATE TRIGGER trg_trajet_bu_controler_dates
 BEFORE UPDATE ON trajet
 FOR EACH ROW
@@ -671,6 +683,7 @@ BEGIN
     END IF;
 END$$
 
+-- Passe le vélo en cours de location et utilise sa réservation si besoin.
 CREATE TRIGGER trg_trajet_ai_demarrer_location
 AFTER INSERT ON trajet
 FOR EACH ROW
@@ -687,6 +700,7 @@ BEGIN
     WHERE numero_serie = NEW.numero_serie;
 END$$
 
+-- Remet le vélo sur la borne d'arrivée et débite le portefeuille.
 CREATE TRIGGER trg_trajet_au_restituer_velo
 AFTER UPDATE ON trajet
 FOR EACH ROW
@@ -717,6 +731,7 @@ DELIMITER ;
 
 DELIMITER $$
 
+-- Expire les réservations dépassant 15 minutes et libère les vélos concernés.
 CREATE EVENT IF NOT EXISTS ev_expirer_reservations
 ON SCHEDULE EVERY 1 MINUTE
 DO
