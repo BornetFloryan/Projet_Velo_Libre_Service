@@ -8,7 +8,7 @@ function mysqlBinary() {
 }
 
 function connectionArgs() {
-  const args = ['--protocol=tcp', '-h', config.database.host, '-P', String(config.database.port), '-u', config.database.user];
+  const args = ['--protocol=tcp', '--default-character-set=utf8mb4', '-h', config.database.host, '-P', String(config.database.port), '-u', config.database.user];
   if (config.database.password) args.push(`-p${config.database.password}`);
   return args;
 }
