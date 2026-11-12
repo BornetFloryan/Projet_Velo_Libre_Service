@@ -108,6 +108,9 @@ th { color: #71868c; font-size: .72rem; font-weight: 800; letter-spacing: .08em;
 td select { min-width: 130px; padding: 7px 8px; }
 .alert { margin-bottom: 16px; padding: 12px 14px; border-radius: 10px; font-weight: 600; }
 .danger { border: 1px solid #fadada; background: #fff1f1; color: #a23131; }
+.warning { border: 1px solid #f0d69a; background: #fff8e7; color: #765415; }
+.warning p { margin: 4px 0 8px; }
+.warning ul { margin: 0; padding-left: 20px; }
 .success { border: 1px solid #cbe9d9; background: #eaf8ef; color: #167653; }
 .loading { margin-bottom: 14px; color: #58727a; font-weight: 600; }
 
