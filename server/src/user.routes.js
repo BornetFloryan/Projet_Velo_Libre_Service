@@ -31,7 +31,8 @@ router.get('/trips', async (req, res, next) => {
     const trips = await many(`SELECT t.*, ds.nom AS station_depart_nom, ar.nom AS station_arrivee_nom FROM trajet t
       JOIN station ds ON ds.id_station = t.id_station_depart LEFT JOIN station ar ON ar.id_station = t.id_station_arrivee
       WHERE t.id_usager = :id ORDER BY t.date_depart DESC`, { id: req.session.actor.id });
-    res.json({ openTrip, reservation, trips });
+    const stations = await many('SELECT id_station, nom FROM station WHERE etat = \'en_service\' ORDER BY nom');
+    res.json({ openTrip, reservation, trips, stations });
   } catch (e) { next(e); }
 });
 
