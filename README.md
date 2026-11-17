@@ -29,6 +29,11 @@ SET GLOBAL event_scheduler = ON;
 10 000 positions et 10 000 changements d'état. Il suffit pour analyser les plans d'exécution
 avec `EXPLAIN`, sans importer un second fichier ni perturber les parcours visibles dans l'application.
 
+Le compte administration peut aussi charger, depuis l'application, une base de comparaison sans
+index composé ou une base optimisée. Les deux ajoutent le même jeu de charge de 1,5 million de
+positions pour `SIM-001`. Le script `benchmark_optimisation.sql` mesure alors les deux scénarios
+et restaure l'index composé à la fin.
+
 4. Copier `.env.example` vers `.env` si les paramètres MySQL par défaut ne conviennent pas.
 5. Installer les dépendances puis lancer l’application :
 

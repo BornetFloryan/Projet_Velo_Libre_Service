@@ -46,7 +46,10 @@ function runMysql(input, extraArgs = []) {
   });
 }
 
-async function resetToDemoData(targetDatabase = config.database.database) {
+async function resetToDemoData(
+  targetDatabase = config.database.database,
+  mode = "standard",
+) {
   let schema = await fs.readFile(
     path.resolve(__dirname, "../../../velo_libre_service_mysql.sql"),
     "utf8",
@@ -64,11 +67,38 @@ async function resetToDemoData(targetDatabase = config.database.database) {
     /USE\s+velo_libre_service\s*;/i,
     `USE \`${database}\`;`,
   );
+
+  if (!["standard", "baseline", "optimized"].includes(mode)) {
+    throw new Error("Mode de base inconnu.");
+  }
+
   await runMysql(
     `DROP DATABASE IF EXISTS \`${database}\`;\nCREATE DATABASE \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n`,
   );
   await runMysql(schema);
+
+  if (mode === "baseline") {
+    await runMysql(`
+      USE \`${database}\`;
+      CREATE INDEX idx_historique_position_velo_simple
+      ON historique_position (numero_serie);
+      DROP INDEX idx_historique_position_velo_date ON historique_position;
+    `);
+  }
+
   await runMysql(demoData);
+
+  if (mode === "baseline" || mode === "optimized") {
+    let loadData = await fs.readFile(
+      path.resolve(__dirname, "../../../donnees_charge_optimisation.sql"),
+      "utf8",
+    );
+    loadData = loadData.replace(
+      /USE\s+velo_libre_service\s*;/i,
+      `USE \`${database}\`;`,
+    );
+    await runMysql(loadData);
+  }
 }
 
 module.exports = { resetToDemoData };

@@ -320,6 +320,10 @@ select {
 .user small {
   color: #71868c;
 }
+.comparison-button {
+  padding: 8px 10px;
+  font-size: 0.78rem;
+}
 .app-shell > main {
   max-width: 1220px;
   margin: 0 auto;

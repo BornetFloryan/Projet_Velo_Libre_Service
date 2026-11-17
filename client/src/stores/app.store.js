@@ -111,16 +111,24 @@ export const useAppStore = defineStore("app", {
         this.success = result.message;
       });
     },
-    async resetDatabase() {
+    async resetDatabase(mode = "standard") {
       await this.run(async () => {
+        const labels = {
+          standard: "la base de démonstration",
+          baseline: "la base de comparaison sans index composé",
+          optimized: "la base de comparaison optimisée",
+        };
         if (
           !window.confirm(
-            "Remettre la base dans son état initial ? Toutes les données actuelles seront supprimées.",
+            `Charger ${labels[mode]} ? Toutes les données actuelles seront supprimées.`,
           )
         )
           return;
         this.success = (
-          await request("/common/reset-database", { method: "POST" })
+          await request("/common/reset-database", {
+            method: "POST",
+            body: JSON.stringify({ mode }),
+          })
         ).message;
         await this.load("dashboard");
       });

@@ -5,6 +5,7 @@
 USE velo_libre_service;
 
 DROP TEMPORARY TABLE IF EXISTS resultat_benchmark;
+DROP PROCEDURE IF EXISTS mesurer_requete_historique;
 
 CREATE TEMPORARY TABLE resultat_benchmark (
     scenario VARCHAR(80) NOT NULL,
@@ -19,13 +20,20 @@ DELIMITER $$
 CREATE PROCEDURE mesurer_requete_historique(IN p_scenario VARCHAR(80))
 BEGIN
     DECLARE v_compteur INT DEFAULT 0;
+    DECLARE v_repetitions INT DEFAULT 100;
     DECLARE v_lignes INT DEFAULT 0;
     DECLARE v_debut DATETIME(6);
     DECLARE v_duree_ms DECIMAL(12,3);
 
     SET v_debut = NOW(6);
 
-    WHILE v_compteur < 100 DO
+    SELECT CASE
+        WHEN COUNT(*) > 100000 THEN 3
+        ELSE 100
+    END INTO v_repetitions
+    FROM historique_position;
+
+    WHILE v_compteur < v_repetitions DO
         SELECT COUNT(*) INTO v_lignes
         FROM (
             SELECT h.id_historique_position
@@ -54,17 +62,15 @@ END$$
 DELIMITER ;
 
 -- La clé étrangère sur numero_serie conserve un index simple dans le cas de base.
-DROP INDEX IF EXISTS idx_historique_position_velo_simple ON historique_position;
-CREATE INDEX idx_historique_position_velo_simple
+CREATE INDEX IF NOT EXISTS idx_historique_position_velo_simple
 ON historique_position (numero_serie);
 
-DROP INDEX idx_historique_position_velo_date ON historique_position;
+DROP INDEX IF EXISTS idx_historique_position_velo_date ON historique_position;
 CALL mesurer_requete_historique('Sans index compose');
 
 CREATE INDEX idx_historique_position_velo_date
 ON historique_position (numero_serie, date_heure);
 
-DROP INDEX idx_historique_position_velo_simple ON historique_position;
 CALL mesurer_requete_historique('Avec index compose');
 
 SELECT *

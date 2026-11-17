@@ -5,7 +5,7 @@ import { useAppStore } from '../stores/app.store';
 const router = useRouter();
 const store = useAppStore();
 const logout = async () => { await store.logout(); router.push('/connexion'); };
-const reset = async () => { await store.resetDatabase(); router.push('/operateur'); };
+const reset = async (mode) => { await store.resetDatabase(mode); router.push('/operateur'); };
 </script>
 
 <template>
@@ -26,8 +26,10 @@ const reset = async () => { await store.resetDatabase(); router.push('/operateur
         </template>
       </nav>
       <div class="user"><span>{{ store.actor?.name }}<small v-if="store.isOperator"> · {{ store.actor.role
-            }}</small></span><button v-if="store.actor?.role === 'administration'" class="danger-button"
-          @click="reset">Réinitialiser la BDD</button><button class="logout" @click="logout">Déconnexion</button></div>
+            }}</small></span><template v-if="store.actor?.role === 'administration'"><button class="danger-button"
+          @click="reset('standard')">Réinitialiser</button><button class="secondary comparison-button"
+          @click="reset('baseline')">Charge sans index</button><button class="primary comparison-button"
+          @click="reset('optimized')">Charge optimisée</button></template><button class="logout" @click="logout">Déconnexion</button></div>
     </header>
     <main>
       <div v-if="store.error" class="alert danger">{{ store.error }}</div>

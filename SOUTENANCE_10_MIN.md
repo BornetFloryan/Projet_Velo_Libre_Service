@@ -56,7 +56,7 @@ WHERE numero_serie = 'SIM-001'
 ORDER BY date_heure DESC;
 ```
 
-Mesure de validation réalisée sur le jeu de données : 10 024 positions, dont environ 5 835 pour `SIM-001`. Sur 100 exécutions, le script a mesuré 1 180,678 ms sans index composé, soit 11,807 ms par requête, puis 135,269 ms avec l'index composé, soit 1,353 ms par requête. L'index occupe de l'espace et doit être mis à jour à chaque écriture.
+Mesure de validation sur la charge de comparaison : environ 1,5 million de positions supplémentaires pour `SIM-001`. Le script exécute alors trois fois la même requête : 14 959,754 ms sans index composé, soit 4 986,585 ms par requête, puis 390,190 ms avec l'index composé, soit 130,063 ms par requête. L'index occupe de l'espace et doit être mis à jour à chaque écriture.
 
 ### Partitionnement
 
