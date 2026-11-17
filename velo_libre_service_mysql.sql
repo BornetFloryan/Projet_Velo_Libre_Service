@@ -794,4 +794,215 @@ END$$
 
 DELIMITER ;
 
--- SHOW EVENTS FROM velo_libre_service; (à exécuter après SET GLOBAL event_scheduler = ON)
+-- ============================================================
+-- EVENEMENTS DE SIMULATION
+-- Les événements ci-dessous font évoluer uniquement les comptes simulation.*
+-- et les vélos SIM-*. Ils alimentent les vraies tables du projet.
+-- ============================================================
+
+DELIMITER $$
+
+-- Ajoute une réservation de simulation chaque minute.
+CREATE EVENT IF NOT EXISTS ev_simuler_reservations
+ON SCHEDULE EVERY 1 MINUTE
+DO
+BEGIN
+    DECLARE v_usager INT DEFAULT NULL;
+    DECLARE v_velo VARCHAR(50) DEFAULT NULL;
+
+    SELECT u.id_usager INTO v_usager
+    FROM usager u
+    WHERE u.email LIKE 'simulation.%@example.test'
+      AND NOT EXISTS (
+          SELECT 1 FROM reservation r
+          WHERE r.id_usager = u.id_usager AND r.statut = 'active'
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM trajet t
+          WHERE t.id_usager = u.id_usager AND t.date_arrivee IS NULL
+      )
+    ORDER BY RAND()
+    LIMIT 1;
+
+    SELECT v.numero_serie INTO v_velo
+    FROM velo v
+    WHERE v.numero_serie LIKE 'SIM-%'
+      AND v.etat = 'disponible'
+      AND NOT EXISTS (
+          SELECT 1 FROM reservation r
+          WHERE r.numero_serie = v.numero_serie AND r.statut = 'active'
+      )
+    ORDER BY RAND()
+    LIMIT 1;
+
+    IF v_usager IS NOT NULL AND v_velo IS NOT NULL THEN
+        INSERT INTO reservation (date_reservation, statut, id_usager, numero_serie)
+        VALUES (NOW(), 'active', v_usager, v_velo);
+    END IF;
+END$$
+
+-- Transforme une réservation de simulation en trajet après au moins une minute.
+CREATE EVENT IF NOT EXISTS ev_simuler_emprunts
+ON SCHEDULE EVERY 1 MINUTE
+DO
+BEGIN
+    DECLARE v_usager INT DEFAULT NULL;
+    DECLARE v_velo VARCHAR(50) DEFAULT NULL;
+    DECLARE v_station INT DEFAULT NULL;
+    DECLARE v_borne INT DEFAULT NULL;
+
+    SELECT r.id_usager, r.numero_serie, b.id_station, b.id_borne
+      INTO v_usager, v_velo, v_station, v_borne
+      FROM reservation r
+      JOIN velo v ON v.numero_serie = r.numero_serie
+      JOIN borne b ON b.id_borne = v.id_borne_actuelle
+     WHERE r.statut = 'active'
+       AND r.date_reservation <= NOW() - INTERVAL 1 MINUTE
+       AND r.id_usager IN (
+           SELECT id_usager FROM usager WHERE email LIKE 'simulation.%@example.test'
+       )
+     ORDER BY r.date_reservation
+     LIMIT 1;
+
+    IF v_usager IS NOT NULL THEN
+        INSERT INTO trajet (
+            date_depart, id_usager, numero_serie, id_station_depart, id_borne_depart
+        ) VALUES (
+            NOW() - INTERVAL 1 MINUTE,
+            v_usager, v_velo, v_station, v_borne
+        );
+    END IF;
+END$$
+
+-- Restitue un trajet de simulation sur une borne libre après au moins une minute.
+CREATE EVENT IF NOT EXISTS ev_simuler_restitutions
+ON SCHEDULE EVERY 1 MINUTE
+DO
+BEGIN
+    DECLARE v_trajet INT DEFAULT NULL;
+    DECLARE v_borne INT DEFAULT NULL;
+    DECLARE v_station INT DEFAULT NULL;
+
+    SELECT t.id_trajet INTO v_trajet
+    FROM trajet t
+    JOIN usager u ON u.id_usager = t.id_usager
+    WHERE t.date_arrivee IS NULL
+      AND t.date_depart <= NOW() - INTERVAL 1 MINUTE
+      AND u.email LIKE 'simulation.%@example.test'
+    ORDER BY t.date_depart
+    LIMIT 1;
+
+    SELECT b.id_borne, b.id_station INTO v_borne, v_station
+    FROM borne b
+    JOIN station s ON s.id_station = b.id_station
+    LEFT JOIN velo v ON v.id_borne_actuelle = b.id_borne
+    WHERE b.etat = 'disponible'
+      AND s.etat = 'en_service'
+      AND v.numero_serie IS NULL
+    ORDER BY RAND()
+    LIMIT 1;
+
+    IF v_trajet IS NOT NULL AND v_borne IS NOT NULL THEN
+        UPDATE trajet
+        SET date_arrivee = NOW(),
+            id_station_arrivee = v_station,
+            id_borne_arrivee = v_borne
+        WHERE id_trajet = v_trajet
+          AND date_arrivee IS NULL;
+    END IF;
+END$$
+
+-- Simule une panne sur un vélo de simulation et crée le signalement associé.
+CREATE EVENT IF NOT EXISTS ev_simuler_pannes
+ON SCHEDULE EVERY 5 MINUTE
+DO
+BEGIN
+    DECLARE v_velo VARCHAR(50) DEFAULT NULL;
+    DECLARE v_station INT DEFAULT NULL;
+    DECLARE v_usager INT DEFAULT NULL;
+
+    SELECT v.numero_serie, b.id_station
+      INTO v_velo, v_station
+      FROM velo v
+      JOIN borne b ON b.id_borne = v.id_borne_actuelle
+     WHERE v.numero_serie LIKE 'SIM-%'
+       AND v.etat = 'disponible'
+     ORDER BY RAND()
+     LIMIT 1;
+
+    SELECT id_usager INTO v_usager
+    FROM usager
+    WHERE email = 'simulation.01@example.test';
+
+    IF v_velo IS NOT NULL AND v_usager IS NOT NULL THEN
+        UPDATE velo SET etat = 'maintenance' WHERE numero_serie = v_velo;
+
+        INSERT INTO signalement (
+            date_detection, description, id_usager, numero_serie, id_station
+        ) VALUES (
+            NOW(), 'Panne simulée : contrôle de sécurité demandé.',
+            v_usager, v_velo, v_station
+        );
+    END IF;
+END$$
+
+-- Crée puis clôture une intervention sur le plus ancien signalement simulé.
+CREATE EVENT IF NOT EXISTS ev_simuler_reparations
+ON SCHEDULE EVERY 7 MINUTE
+DO
+BEGIN
+    DECLARE v_signalement INT DEFAULT NULL;
+    DECLARE v_velo VARCHAR(50) DEFAULT NULL;
+
+    SELECT s.id_signalement, s.numero_serie
+      INTO v_signalement, v_velo
+      FROM signalement s
+      LEFT JOIN intervention i ON i.id_signalement = s.id_signalement
+     WHERE s.description = 'Panne simulée : contrôle de sécurité demandé.'
+       AND i.id_intervention IS NULL
+     ORDER BY s.date_detection
+     LIMIT 1;
+
+    IF v_signalement IS NOT NULL THEN
+        INSERT INTO intervention (
+            date_debut, date_fin, type_action, id_signalement, id_operateur
+        ) VALUES (
+            NOW() - INTERVAL 2 MINUTE,
+            NOW(),
+            'Réparation automatique de démonstration',
+            v_signalement,
+            1
+        );
+
+        UPDATE velo
+        SET etat = 'disponible',
+            niveau_batterie = CASE
+                WHEN id_categorie = 2 THEN GREATEST(COALESCE(niveau_batterie, 60), 60)
+                ELSE NULL
+            END
+        WHERE numero_serie = v_velo;
+    END IF;
+END$$
+
+-- Recharge les portefeuilles simulés afin que les trajets continuent.
+CREATE EVENT IF NOT EXISTS ev_simuler_recharges
+ON SCHEDULE EVERY 10 MINUTE
+DO
+BEGIN
+    INSERT INTO operation_portefeuille (nature, montant, id_usager)
+    SELECT 'rechargement', 30.00, id_usager
+    FROM usager
+    WHERE email LIKE 'simulation.%@example.test'
+      AND solde_portefeuille < 5.00;
+
+    UPDATE usager
+    SET solde_portefeuille = solde_portefeuille + 30.00
+    WHERE email LIKE 'simulation.%@example.test'
+      AND solde_portefeuille < 5.00;
+END$$
+
+DELIMITER ;
+
+-- Afficher l'état : SHOW EVENTS FROM velo_libre_service;
+-- Active le planificateur pour faire exécuter les événements planifiés.
+SET GLOBAL event_scheduler = ON;

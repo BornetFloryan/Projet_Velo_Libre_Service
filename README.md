@@ -25,8 +25,8 @@ Prérequis : Node.js 18 ou supérieur et MySQL (XAMPP convient pour MySQL).
 SET GLOBAL event_scheduler = ON;
 ```
 
-`donnees_test.sql` contient aussi un volume de démonstration : 5 000 réservations terminées,
-5 000 positions et 5 000 changements d'état. Il suffit pour analyser les plans d'exécution
+`donnees_test.sql` contient aussi un volume de démonstration : 10 000 réservations terminées,
+10 000 positions et 10 000 changements d'état. Il suffit pour analyser les plans d'exécution
 avec `EXPLAIN`, sans importer un second fichier ni perturber les parcours visibles dans l'application.
 
 4. Copier `.env.example` vers `.env` si les paramètres MySQL par défaut ne conviennent pas.

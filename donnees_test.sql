@@ -252,7 +252,7 @@ BEGIN
     DECLARE v_velo VARCHAR(50);
     DECLARE v_usager INT;
 
-    WHILE v_compteur <= 5000 DO
+    WHILE v_compteur <= 10000 DO
         SET v_velo = CONCAT('SIM-', LPAD(1 + MOD(v_compteur - 1, 12), 3, '0'));
         SET v_usager = 5 + MOD(v_compteur - 1, 8);
 
@@ -266,7 +266,10 @@ BEGIN
                 ELSE 'utilisee'
             END,
             v_usager,
-            v_velo
+            CASE
+                WHEN MOD(v_compteur, 2) = 0 THEN 'SIM-001'
+                ELSE v_velo
+            END
         );
 
         INSERT INTO historique_position (
@@ -276,7 +279,10 @@ BEGIN
             1 + MOD(v_compteur - 1, 32),
             1 + MOD(v_compteur + 6, 32),
             'Mouvement historique de démonstration',
-            v_velo
+            CASE
+                WHEN MOD(v_compteur, 2) = 0 THEN 'SIM-001'
+                ELSE v_velo
+            END
         );
 
         INSERT INTO historique_etat (
@@ -286,7 +292,10 @@ BEGIN
             IF(MOD(v_compteur, 2) = 0, 'disponible', 'maintenance'),
             IF(MOD(v_compteur, 2) = 0, 'maintenance', 'disponible'),
             'Historique de démonstration',
-            v_velo
+            CASE
+                WHEN MOD(v_compteur, 2) = 0 THEN 'SIM-001'
+                ELSE v_velo
+            END
         );
 
         SET v_compteur = v_compteur + 1;

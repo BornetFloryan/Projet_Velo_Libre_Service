@@ -8,7 +8,7 @@ Créneau communiqué : 15 h 40
 | Temps | Partie | À montrer |
 | --- | --- | --- |
 | 0:00–4:00 | Use cases et EA Chen | Diagrammes corrigés, acteurs, principales entités et règles métier |
-| 4:00–5:00 | Requête et optimisation | Requête d'historique, `EXPLAIN ANALYZE`, index composé, partitionnement écarté |
+| 4:00–5:00 | Requête et optimisation | Requête d'historique, `EXPLAIN FORMAT=JSON`, index composé, partitionnement écarté |
 | 5:00–9:00 | Application | Réservation usager, puis traitement d'un signalement par maintenance |
 | 9:00–10:00 | Automatisation SQL | Trigger de restitution, fonction de coût et événement d'expiration |
 | 10:00+ | Questions | Chaque membre doit pouvoir défendre les choix et limites |
@@ -33,8 +33,6 @@ Architecture logicielle à annoncer avec exactitude : Vue 3 appelle une API Expr
 
 Requête à expliquer : afficher la chronologie des déplacements d'un vélo, avec les noms des stations d'origine et de destination, en commençant par le plus récent. Elle joint les historiques de position aux bornes puis aux stations, filtre sur le numéro de série et trie sur la date.
 
-Mesure faite sur une base temporaire issue du jeu initial : 5 024 positions. Après une lecture d'échauffement, 11 exécutions de chaque variante donnent une médiane de **1,385 ms avec l'index** et **1,902 ms en ignorant cet index**. Le client Node mesure l'aller-retour vers le serveur local, donc ces temps servent à comparer ces deux variantes sur cette machine. Ils ne prédisent pas les performances d'un autre ordinateur. `EXPLAIN FORMAT=JSON` confirme que le plan normal choisit `idx_historique_position_velo_date` et estime environ 418 lignes pour `SIM-001`.
-
 ```sql
 SELECT h.date_heure, h.type_deplacement,
        station_depart.nom AS ancienne_station,
@@ -48,23 +46,17 @@ WHERE h.numero_serie = 'SIM-001'
 ORDER BY h.date_heure DESC;
 ```
 
-L'index composé correspondant est `idx_historique_position_velo_date (numero_serie, date_heure)`. La première colonne sert à retrouver les lignes du vélo, la seconde à les lire dans l'ordre chronologique demandé. Afficher les résultats des deux variantes ci-dessous avec les chiffres observés sur l'ordinateur de démonstration. Ne pas annoncer un gain théorique comme une mesure.
+L'index composé correspondant est `idx_historique_position_velo_date (numero_serie, date_heure)`. La première colonne sert à retrouver les lignes du vélo, la seconde à les lire dans l'ordre chronologique demandé. Le script `benchmark_optimisation.sql` exécute 100 fois la même requête avant puis après la création de cet index composé et affiche les temps observés.
 
 ```sql
-EXPLAIN ANALYZE
+EXPLAIN FORMAT=JSON
 SELECT date_heure, type_deplacement
 FROM historique_position
 WHERE numero_serie = 'SIM-001'
 ORDER BY date_heure DESC;
-
-EXPLAIN ANALYZE
-SELECT date_heure, type_deplacement
-FROM historique_position IGNORE INDEX (idx_historique_position_velo_date)
-WHERE numero_serie = 'SIM-001'
-ORDER BY date_heure DESC;
 ```
 
-Mesurer plusieurs fois et comparer les temps observés, le nombre de lignes examinées et le plan choisi. La variante `IGNORE INDEX` est réservée à la comparaison. L'index occupe de l'espace et doit être mis à jour à chaque écriture.
+Mesure de validation réalisée sur le jeu de données : 10 024 positions, dont environ 5 835 pour `SIM-001`. Sur 100 exécutions, le script a mesuré 1 180,678 ms sans index composé, soit 11,807 ms par requête, puis 135,269 ms avec l'index composé, soit 1,353 ms par requête. L'index occupe de l'espace et doit être mis à jour à chaque écriture.
 
 ### Partitionnement
 
@@ -96,7 +88,8 @@ Alternative si l'équipe préfère montrer la régulation : `nolan.robert@exampl
 - À la restitution, le trigger vérifie la borne, calcule la durée et le coût, marque le paiement puis met à jour le portefeuille et la position du vélo.
 - Les triggers d'historisation ajoutent une ligne quand la position ou l'état d'un vélo change.
 - `fn_calculer_cout_trajet` centralise le calcul tarifaire utilisé par la restitution.
-- `ev_expirer_reservations` s'exécute chaque minute et libère les vélos dont la réservation active a expiré. Le planificateur MySQL doit être activé.
+- `ev_expirer_reservations` s'exécute chaque minute et libère les vélos dont la réservation active a expiré.
+- Les événements de simulation créent ensuite des réservations, emprunts, restitutions, pannes, réparations et recharges sur les comptes `simulation.*` et les vélos `SIM-*`.
 
 ## Réponses courtes aux questions probables
 
