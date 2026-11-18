@@ -38,7 +38,7 @@ const report = (bike, station) => { store.action('report_issue', { numero_serie:
                                     bike.id_borne_actuelle }}</small></div><span class="badge">{{ bike.etat }}</span>
                             <div v-if="!store.isOperator" class="actions"><button v-if="bike.etat === 'disponible'"
                                     class="primary small"
-                                    @click="store.action('start_trip', { numero_serie: bike.numero_serie, id_station_depart: s.id_station, id_borne_depart: bike.id_borne_actuelle }, 'trips')">Emprunter</button><button
+                                    @click="store.action('start_trip', { numero_serie: bike.numero_serie, id_station_depart: s.id_station, id_borne_depart: bike.id_borne_actuelle }, 'stations')">Emprunter</button><button
                                     v-if="bike.etat === 'disponible'" class="secondary small"
                                     @click="store.action('reserve_bike', { numero_serie: bike.numero_serie }, 'stations')">Réserver
                                     15 min</button><button class="link small"

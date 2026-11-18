@@ -840,7 +840,7 @@ BEGIN
     SELECT v.numero_serie INTO v_velo
     FROM velo v
     JOIN borne b ON b.id_borne = v.id_borne_actuelle
-    WHERE v.numero_serie LIKE 'VELO-%'
+    WHERE v.numero_serie IN ('VELO-010', 'VELO-011', 'VELO-012')
       AND v.etat = 'disponible'
       AND NOT EXISTS (
           SELECT 1 FROM reservation r

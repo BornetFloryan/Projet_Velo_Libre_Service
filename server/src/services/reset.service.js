@@ -42,7 +42,10 @@ function runMysql(input, extraArgs = []) {
         ? resolve()
         : reject(new Error(stderr || `mysql a retourné le code ${code}`)),
     );
-    child.stdin.end(input);
+    // Les fichiers SQL sont enregistrés en UTF-8 : l'encodage est imposé ici
+    // pour conserver les accents, y compris lors d'une réinitialisation sous Windows.
+    child.stdin.setDefaultEncoding("utf8");
+    child.stdin.end(`SET NAMES utf8mb4;\n${input}`, "utf8");
   });
 }
 
