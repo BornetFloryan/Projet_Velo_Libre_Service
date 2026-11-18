@@ -1,7 +1,6 @@
 # Soutenance Vélo libre-service — 10 minutes
 
-Équipe : Floryan Bornet, Tim Carrara, Enzo Vidy  
-Créneau communiqué : 15 h 40
+Équipe : Floryan Bornet, Tim Carrara, Enzo Vidy
 
 ## Déroulé
 
@@ -10,28 +9,25 @@ Créneau communiqué : 15 h 40
 | 0:00–4:00 | Use cases et EA Chen | Diagrammes corrigés, acteurs, principales entités et règles métier |
 | 4:00–5:00 | Requête et optimisation | Requête d'historique, `EXPLAIN FORMAT=JSON`, index composé, partitionnement écarté |
 | 5:00–9:00 | Application | Réservation usager, puis traitement d'un signalement par maintenance |
-| 9:00–10:00 | Automatisation SQL | Trigger de restitution, fonction de coût et événement d'expiration |
-| 10:00+ | Questions | Chaque membre doit pouvoir défendre les choix et limites |
+| 9:00–10:00 | Automatisation SQL | Trigger de restitution, fonction de coût, procédure et événement d'expiration |
 
 ## 0:00–4:00 — Modèle et architecture
 
-### 0:00–2:00 — Use cases
+### Use cases
 
-Présenter les acteurs sans détailler toutes les ovales : l'usager s'inscrit et se connecte, consulte les stations, réserve ou emprunte un vélo, restitue le vélo, paie le trajet et consulte son historique. Les opérateurs partagent la connexion, puis leurs responsabilités diffèrent : maintenance traite les signalements, régulation enregistre les tournées et déplacements, administration gère le réseau et les formules.
+Présenter les acteurs : l'usager s'inscrit, consulte les stations, réserve ou emprunte un vélo, restitue le vélo, paie le trajet et consulte son historique. Les opérateurs partagent la connexion, puis les responsabilités diffèrent : maintenance, régulation et administration.
 
 Insister sur la frontière du système et sur le fait que les actions représentées correspondent aux fonctions effectivement démontrées dans l'application.
 
-### 2:00–4:00 — EA Chen et conception
+### EA Chen et conception
 
-Présenter le noyau : `USAGER`, `VELO`, `STATION`, `BORNE`, `RESERVATION`, `TRAJET`. Puis montrer les tables qui gardent l'activité : `HISTORIQUE_POSITION`, `HISTORIQUE_ETAT`, `SIGNALEMENT`, `INTERVENTION`, `TOURNEE_REGULATION`, `MOUVEMENT_REGULATION` et `OPERATION_PORTEFEUILLE`.
+Présenter le noyau : `USAGER`, `VELO`, `STATION`, `BORNE`, `RESERVATION`, `TRAJET`. Les tables `HISTORIQUE_POSITION`, `HISTORIQUE_ETAT`, `SIGNALEMENT`, `INTERVENTION`, `TOURNEE_REGULATION`, `MOUVEMENT_REGULATION` et `OPERATION_PORTEFEUILLE` conservent l'activité.
 
-Expliquer une règle de normalisation concrète : les informations de station ne sont pas répétées dans chaque vélo, le vélo référence une borne, qui référence la station. Les historiques sont des lignes séparées afin de conserver les événements successifs sans écraser l'état courant du vélo.
-
-Architecture logicielle à annoncer avec exactitude : Vue 3 appelle une API Express. Les routes lisent et modifient les données MySQL. Les requêtes de lecture passent par les couches route, contrôleur, service et repository. Si des actions métier restent directement dans les routes, le dire comme limite à corriger, pas comme une architecture déjà réalisée.
+Expliquer une règle de normalisation : les stations ne sont pas répétées dans chaque vélo. Le vélo référence une borne, qui référence une station. Les historiques sont séparés afin de conserver les changements successifs sans écraser l'état courant.
 
 ## 4:00–5:00 — Requête complexe et optimisation
 
-Requête à expliquer : afficher la chronologie des déplacements d'un vélo, avec les noms des stations d'origine et de destination, en commençant par le plus récent. Elle joint les historiques de position aux bornes puis aux stations, filtre sur le numéro de série et trie sur la date.
+Requête à expliquer : afficher la chronologie des déplacements d'un vélo, avec les noms des stations d'origine et de destination, en commençant par le plus récent.
 
 ```sql
 SELECT h.date_heure, h.type_deplacement,
@@ -42,65 +38,62 @@ LEFT JOIN borne b_depart ON b_depart.id_borne = h.ancienne_borne
 LEFT JOIN station station_depart ON station_depart.id_station = b_depart.id_station
 LEFT JOIN borne b_arrivee ON b_arrivee.id_borne = h.nouvelle_borne
 LEFT JOIN station station_arrivee ON station_arrivee.id_station = b_arrivee.id_station
-WHERE h.numero_serie = 'SIM-001'
+WHERE h.numero_serie = 'VELO-001'
 ORDER BY h.date_heure DESC;
 ```
 
-L'index composé correspondant est `idx_historique_position_velo_date (numero_serie, date_heure)`. La première colonne sert à retrouver les lignes du vélo, la seconde à les lire dans l'ordre chronologique demandé. Le script `benchmark_optimisation.sql` exécute 100 fois la même requête avant puis après la création de cet index composé et affiche les temps observés.
+L'index composé est `idx_historique_position_velo_date (numero_serie, date_heure)`. La première colonne filtre le vélo, la seconde trie les résultats par date.
+
+Démonstration : charger le mode « Charge sans index », puis lancer `benchmark_optimisation.sql`. Charger ensuite le mode « Charge optimisée » ou relancer le script jusqu'à obtenir les deux lignes de résultat sur la même base. Présenter uniquement les temps réels affichés par `résultat_benchmark`.
+
+La charge de comparaison ajoute 150 000 positions pour le vrai vélo `VELO-001`, un volume suffisant pour rendre l'effet d'un index composé observable sans rendre le chargement excessif. Les résultats doivent être lus directement dans `résultat_benchmark` lors de la soutenance, car les durées varient selon la machine.
 
 ```sql
 EXPLAIN FORMAT=JSON
 SELECT date_heure, type_deplacement
 FROM historique_position
-WHERE numero_serie = 'SIM-001'
+WHERE numero_serie = 'VELO-001'
 ORDER BY date_heure DESC;
 ```
 
-Mesure de validation sur la charge de comparaison : environ 1,5 million de positions supplémentaires pour `SIM-001`. Le script exécute alors trois fois la même requête : 14 959,754 ms sans index composé, soit 4 986,585 ms par requête, puis 390,190 ms avec l'index composé, soit 130,063 ms par requête. L'index occupe de l'espace et doit être mis à jour à chaque écriture.
-
 ### Partitionnement
 
-Ne pas prétendre que la base actuelle est partitionnée. Le volume de démonstration est de quelques milliers de lignes par table, trop faible pour justifier le coût opérationnel d'un partitionnement. En outre, MySQL impose des contraintes importantes aux clés étrangères des tables partitionnées. Les index et le filtrage par vélo répondent au besoin mesuré ici. Le partitionnement par date peut être étudié si les historiques atteignent des volumes beaucoup plus élevés et si l'architecture des clés est adaptée.
+Ne pas prétendre que la base actuelle est partitionnée. Le volume actuel ne justifie pas cette technique. Sur MySQL, la création de partitions peut être incompatible avec certaines clés étrangères et rend le maintien du modèle plus complexe. Le partitionnement par date peut être envisagé plus tard si les historiques deviennent très volumineux, avec une politique de purge et une adaptation des contraintes.
 
 ## 5:00–9:00 — Démonstration de l'application
 
-Préparer les comptes avant de commencer, éviter de saisir les mots de passe en direct si le chronomètre est serré.
-
-### Usager — environ 2 minutes
+### Usager — 2 minutes
 
 1. Se connecter avec `alice.martin@example.test` / `password`.
 2. Ouvrir Stations et choisir un vélo disponible.
-3. Cliquer sur « Réserver 15 min ».
-4. Montrer la réservation sur le tableau de bord ou « Mes trajets ».
-5. Expliquer que l'événement SQL expire une réservation active après 15 minutes. Ne pas attendre son expiration pendant la démonstration.
+3. Réserver le vélo pendant 15 minutes.
+4. Montrer la réservation dans le tableau de bord ou Mes trajets.
 
-### Maintenance — environ 2 minutes
+### Maintenance — 2 minutes
 
 1. Se déconnecter et se connecter avec `camille.leroy@example.test` / `password`.
 2. Ouvrir Opérations puis Signalements.
-3. Montrer le signalement de démonstration et démarrer ou clôturer l'intervention selon son état.
-4. Ouvrir Flotte et montrer l'état du vélo. L'historique des changements est consultable dans Historique.
+3. Montrer le signalement et démarrer ou clôturer une intervention.
+4. Ouvrir Flotte et Historique pour montrer l'état et les changements du vélo.
 
-Alternative si l'équipe préfère montrer la régulation : `nolan.robert@example.test` / `password`, puis créer une tournée et enregistrer un retrait ou dépôt dans l'onglet Régulation.
-
-## 9:00–10:00 — Trigger, fonction et événement
+## 9:00–10:00 — Trigger, fonction, procédure et événement
 
 - À la restitution, le trigger vérifie la borne, calcule la durée et le coût, marque le paiement puis met à jour le portefeuille et la position du vélo.
-- Les triggers d'historisation ajoutent une ligne quand la position ou l'état d'un vélo change.
-- `fn_calculer_cout_trajet` centralise le calcul tarifaire utilisé par la restitution.
-- `ev_expirer_reservations` s'exécute chaque minute et libère les vélos dont la réservation active a expiré.
-- Les événements de simulation créent ensuite des réservations, emprunts, restitutions, pannes, réparations et recharges sur les comptes `simulation.*` et les vélos `SIM-*`.
+- Les deux triggers d'historisation gardent les changements d'état et de borne.
+- `fn_calculer_cout_trajet` centralise le tarif, la durée gratuite et le supplément électrique.
+- `sp_expirer_reservations` centralise l'expiration des réservations et la remise en service des vélos.
+- `ev_expirer_reservations` appelle cette procédure chaque minute.
 
-## Réponses courtes aux questions probables
+## Réponses courtes aux questions
 
-**Pourquoi cet index ?** La page d'historique filtre par numéro de série et trie par date. Les colonnes de l'index suivent cet ordre d'usage.
+**Pourquoi cet index ?** La page d'historique filtre par numéro de série et trie par date.
 
-**Pourquoi ne pas indexer toutes les colonnes ?** Un index accélère certaines lectures, mais prend de la place et ralentit les écritures. Chaque index doit correspondre à une requête identifiée.
+**Pourquoi pas plus d'index ?** Un index accélère certaines lectures, mais prend de la place et ralentit les écritures. Chaque index correspond à une requête réelle.
 
-**Pourquoi pas de partitionnement ?** Le volume présent ne le justifie pas. Le partitionnement complexifierait la gestion et les clés étrangères ; il faudrait le réévaluer sur des volumes bien plus grands avec un besoin de purge ou de lecture par période.
+**Pourquoi pas de partitionnement ?** Le volume ne le justifie pas et les clés étrangères du modèle restent prioritaires.
 
-**Les performances sont-elles garanties ?** Non. Les durées dépendent de la machine, du cache et de MySQL. On compare le même jeu de données et le même serveur, et on présente les mesures réellement observées.
+**Les performances sont-elles garanties ?** Non. Elles dépendent du serveur, du cache et de MySQL. Elles sont mesurées sur la même base et avec les mêmes données.
 
-**Que se passe-t-il sans retour du vélo ?** Le trajet reste ouvert et le vélo reste indisponible. Le coût final est déterminé à la restitution. Le tableau de bord signale les trajets ouverts depuis plus de 24 heures.
+**Que se passe-t-il si le vélo n'est pas rendu ?** Le trajet reste ouvert et le vélo reste en cours. Le coût est calculé à la restitution.
 
-**Comment remettre la démonstration à zéro ?** Le compte administration propose « Réinitialiser la BDD ». Cela recharge le schéma et les données initiales.
+**Comment remettre la démonstration à zéro ?** Le compte administration propose « Réinitialiser la BDD » ou les modes « Charge sans index » et « Charge optimisée ».

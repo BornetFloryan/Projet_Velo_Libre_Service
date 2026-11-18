@@ -763,16 +763,12 @@ END$$
 DELIMITER ;
 
 -- ============================================================
--- EVENEMENT : expiration des réservations après 15 minutes
--- Activé event_scheduler=ON.
+-- PROCEDURE STOCKEE : expiration des réservations
 -- ============================================================
 
 DELIMITER $$
 
--- Expire les réservations dépassant 15 minutes et libère les vélos concernés.
-CREATE EVENT IF NOT EXISTS ev_expirer_reservations
-ON SCHEDULE EVERY 1 MINUTE
-DO
+CREATE PROCEDURE sp_expirer_reservations()
 BEGIN
     UPDATE reservation
     SET statut = 'expiree'
@@ -795,9 +791,26 @@ END$$
 DELIMITER ;
 
 -- ============================================================
+-- EVENEMENT : expiration des réservations après 15 minutes
+-- ============================================================
+
+SET GLOBAL event_scheduler = ON;
+
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS ev_expirer_reservations
+ON SCHEDULE EVERY 1 MINUTE
+DO
+BEGIN
+    CALL sp_expirer_reservations();
+END$$
+
+DELIMITER ;
+
+-- ============================================================
 -- EVENEMENTS DE SIMULATION
 -- Les événements ci-dessous font évoluer uniquement les comptes simulation.*
--- et les vélos SIM-*. Ils alimentent les vraies tables du projet.
+-- et les vélos VELO-* réels. Ils alimentent les vraies tables du projet.
 -- ============================================================
 
 DELIMITER $$
@@ -826,7 +839,8 @@ BEGIN
 
     SELECT v.numero_serie INTO v_velo
     FROM velo v
-    WHERE v.numero_serie LIKE 'SIM-%'
+    JOIN borne b ON b.id_borne = v.id_borne_actuelle
+    WHERE v.numero_serie LIKE 'VELO-%'
       AND v.etat = 'disponible'
       AND NOT EXISTS (
           SELECT 1 FROM reservation r
@@ -912,7 +926,7 @@ BEGIN
     END IF;
 END$$
 
--- Simule une panne sur un vélo de simulation et crée le signalement associé.
+-- Simule une panne sur un vélo réel VELO-* et crée le signalement associé.
 CREATE EVENT IF NOT EXISTS ev_simuler_pannes
 ON SCHEDULE EVERY 5 MINUTE
 DO
@@ -925,7 +939,7 @@ BEGIN
       INTO v_velo, v_station
       FROM velo v
       JOIN borne b ON b.id_borne = v.id_borne_actuelle
-     WHERE v.numero_serie LIKE 'SIM-%'
+     WHERE v.numero_serie LIKE 'VELO-%'
        AND v.etat = 'disponible'
      ORDER BY RAND()
      LIMIT 1;

@@ -1,6 +1,6 @@
--- Comparaison d'une même requête avant et après l'index composé.
+-- Comparaison d'une même requête avant/après index composé.
 -- À lancer après velo_libre_service_mysql.sql puis donnees_test.sql.
--- Le script rétablit l'index composé à la fin.
+-- La procédure de mesure est supprimée à la fin.
 
 USE velo_libre_service;
 
@@ -28,8 +28,8 @@ BEGIN
     SET v_debut = NOW(6);
 
     SELECT CASE
-        WHEN COUNT(*) > 100000 THEN 3
-        ELSE 100
+        WHEN COUNT(*) > 50000 THEN 3
+        ELSE 20
     END INTO v_repetitions
     FROM historique_position;
 
@@ -42,7 +42,7 @@ BEGIN
             LEFT JOIN station station_depart ON station_depart.id_station = b_depart.id_station
             LEFT JOIN borne b_arrivee ON b_arrivee.id_borne = h.nouvelle_borne
             LEFT JOIN station station_arrivee ON station_arrivee.id_station = b_arrivee.id_station
-            WHERE h.numero_serie = 'SIM-001'
+            WHERE h.numero_serie = 'VELO-001'
             ORDER BY h.date_heure DESC
             LIMIT 500
         ) AS historique;
@@ -61,14 +61,16 @@ END$$
 
 DELIMITER ;
 
--- La clé étrangère sur numero_serie conserve un index simple dans le cas de base.
+-- Scénario sans index composé : index simple conservé pour la clé étrangère.
 CREATE INDEX IF NOT EXISTS idx_historique_position_velo_simple
 ON historique_position (numero_serie);
 
-DROP INDEX IF EXISTS idx_historique_position_velo_date ON historique_position;
+ALTER TABLE historique_position DROP INDEX IF EXISTS idx_historique_position_velo_date;
+
 CALL mesurer_requete_historique('Sans index compose');
 
-CREATE INDEX idx_historique_position_velo_date
+-- Scénario optimisé : retour à l'index composé utilisé par l'application.
+CREATE INDEX IF NOT EXISTS idx_historique_position_velo_date
 ON historique_position (numero_serie, date_heure);
 
 CALL mesurer_requete_historique('Avec index compose');
@@ -89,7 +91,7 @@ LEFT JOIN borne b_depart ON b_depart.id_borne = h.ancienne_borne
 LEFT JOIN station station_depart ON station_depart.id_station = b_depart.id_station
 LEFT JOIN borne b_arrivee ON b_arrivee.id_borne = h.nouvelle_borne
 LEFT JOIN station station_arrivee ON station_arrivee.id_station = b_arrivee.id_station
-WHERE h.numero_serie = 'SIM-001'
+WHERE h.numero_serie = 'VELO-001'
 ORDER BY h.date_heure DESC;
 
 DROP PROCEDURE mesurer_requete_historique;

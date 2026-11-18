@@ -130,24 +130,10 @@ INSERT INTO velo (
     ('VELO-006', 'atelier', NULL, CURDATE() - INTERVAL 1100 DAY, 1, NULL),
     ('VELO-007', 'disponible', NULL, CURDATE() - INTERVAL 400 DAY, 1, 18),
     ('VELO-008', 'hors_service', 5, CURDATE() - INTERVAL 800 DAY, 2, 25),
-    ('VELO-009', 'disponible', 76, CURDATE() - INTERVAL 100 DAY, 2, 26);
-
--- Flotte dédiée aux événements de démonstration, séparée des vélos présentés aux usagers.
-INSERT INTO velo (
-    numero_serie, etat, niveau_batterie, date_mise_service, id_categorie, id_borne_actuelle
-) VALUES
-    ('SIM-001', 'disponible', NULL, CURDATE() - INTERVAL 200 DAY, 1, 3),
-    ('SIM-002', 'disponible', 85, CURDATE() - INTERVAL 180 DAY, 2, 4),
-    ('SIM-003', 'disponible', NULL, CURDATE() - INTERVAL 170 DAY, 1, 6),
-    ('SIM-004', 'disponible', 76, CURDATE() - INTERVAL 160 DAY, 2, 7),
-    ('SIM-005', 'disponible', NULL, CURDATE() - INTERVAL 150 DAY, 1, 8),
-    ('SIM-006', 'disponible', 64, CURDATE() - INTERVAL 140 DAY, 2, 9),
-    ('SIM-007', 'disponible', NULL, CURDATE() - INTERVAL 130 DAY, 1, 13),
-    ('SIM-008', 'disponible', 71, CURDATE() - INTERVAL 120 DAY, 2, 14),
-    ('SIM-009', 'disponible', NULL, CURDATE() - INTERVAL 110 DAY, 1, 15),
-    ('SIM-010', 'disponible', 89, CURDATE() - INTERVAL 100 DAY, 2, 16),
-    ('SIM-011', 'disponible', NULL, CURDATE() - INTERVAL 90 DAY, 1, 19),
-    ('SIM-012', 'disponible', 58, CURDATE() - INTERVAL 80 DAY, 2, 20);
+    ('VELO-009', 'disponible', 76, CURDATE() - INTERVAL 100 DAY, 2, 26),
+    ('VELO-010', 'disponible', 89, CURDATE() - INTERVAL 100 DAY, 2, 21),
+    ('VELO-011', 'disponible', NULL, CURDATE() - INTERVAL 90 DAY, 1, 22),
+    ('VELO-012', 'disponible', 58, CURDATE() - INTERVAL 80 DAY, 2, 23);
 
 -- ============================================================
 -- TRAJET HISTORIQUE PAYE
@@ -252,8 +238,8 @@ BEGIN
     DECLARE v_velo VARCHAR(50);
     DECLARE v_usager INT;
 
-    WHILE v_compteur <= 10000 DO
-        SET v_velo = CONCAT('SIM-', LPAD(1 + MOD(v_compteur - 1, 12), 3, '0'));
+    WHILE v_compteur <= 3000 DO
+        SET v_velo = CONCAT('VELO-', LPAD(1 + MOD(v_compteur - 1, 12), 3, '0'));
         SET v_usager = 5 + MOD(v_compteur - 1, 8);
 
         INSERT INTO reservation (
@@ -267,7 +253,7 @@ BEGIN
             END,
             v_usager,
             CASE
-                WHEN MOD(v_compteur, 2) = 0 THEN 'SIM-001'
+                WHEN MOD(v_compteur, 2) = 0 THEN 'VELO-001'
                 ELSE v_velo
             END
         );
@@ -280,7 +266,7 @@ BEGIN
             1 + MOD(v_compteur + 6, 32),
             'Mouvement historique de démonstration',
             CASE
-                WHEN MOD(v_compteur, 2) = 0 THEN 'SIM-001'
+                WHEN MOD(v_compteur, 2) = 0 THEN 'VELO-001'
                 ELSE v_velo
             END
         );
@@ -293,7 +279,7 @@ BEGIN
             IF(MOD(v_compteur, 2) = 0, 'maintenance', 'disponible'),
             'Historique de démonstration',
             CASE
-                WHEN MOD(v_compteur, 2) = 0 THEN 'SIM-001'
+                WHEN MOD(v_compteur, 2) = 0 THEN 'VELO-001'
                 ELSE v_velo
             END
         );
@@ -311,4 +297,4 @@ COMMIT;
 
 -- Une réservation active visible immédiatement dans l'interface.
 INSERT INTO reservation (date_reservation, statut, id_usager, numero_serie)
-VALUES (NOW() - INTERVAL 4 MINUTE, 'active', 5, 'SIM-012');
+VALUES (NOW() - INTERVAL 4 MINUTE, 'active', 5, 'VELO-012');

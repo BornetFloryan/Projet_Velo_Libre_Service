@@ -11,7 +11,7 @@ Application de gestion d’un réseau de vélos en libre-service. Le dépôt con
 - abonnements, portefeuille et évaluation d’un trajet ;
 - signalement d’un problème sur un vélo ;
 - espace opérateur : maintenance, flotte, régulation, administration et statistiques ;
-- historisation, triggers, fonction métier, vues de reporting et événement MySQL.
+- historisation, triggers, fonction métier, procédure stockée, vues de reporting et événements MySQL.
 
 ## Démarrage rapide
 
@@ -25,13 +25,13 @@ Prérequis : Node.js 18 ou supérieur et MySQL (XAMPP convient pour MySQL).
 SET GLOBAL event_scheduler = ON;
 ```
 
-`donnees_test.sql` contient aussi un volume de démonstration : 10 000 réservations terminées,
-10 000 positions et 10 000 changements d'état. Il suffit pour analyser les plans d'exécution
-avec `EXPLAIN`, sans importer un second fichier ni perturber les parcours visibles dans l'application.
+`donnees_test.sql` contient un volume de démonstration léger : 3 000 réservations terminées,
+3 000 positions et 3 000 changements d'état. Il suffit pour analyser les plans d'exécution
+avec `EXPLAIN`, sans perturber les parcours visibles dans l'application.
 
 Le compte administration peut aussi charger, depuis l'application, une base de comparaison sans
-index composé ou une base optimisée. Les deux ajoutent le même jeu de charge de 1,5 million de
-positions pour `SIM-001`. Le script `benchmark_optimisation.sql` mesure alors les deux scénarios
+index composé ou une base optimisée. Les deux ajoutent le même jeu de charge de 150 000
+positions pour `VELO-001`. Le script `benchmark_optimisation.sql` mesure les deux scénarios
 et restaure l'index composé à la fin.
 
 4. Copier `.env.example` vers `.env` si les paramètres MySQL par défaut ne conviennent pas.
@@ -59,36 +59,28 @@ Les mots de passe ne sont présents que pour le jeu de démonstration. Ils sont 
 
 ```text
 .
-├── velo_libre_service_mysql.sql   # Schéma, contraintes, vues, triggers, fonction, événement
+├── velo_libre_service_mysql.sql   # Schéma, contraintes, vues, triggers, fonction, événements
 ├── donnees_test.sql               # Jeu de données de démonstration
+├── donnees_charge_optimisation.sql# Charge légère de comparaison
+├── benchmark_optimisation.sql     # Mesure avant/après index composé
 ├── server/src/                    # API Express, routes, accès MySQL et sécurité
 ├── client/                        # SPA Vue 3 et composants de l’interface
 ├── package.json                   # Dépendances et scripts Node.js
 ├── tests/                         # Scénarios de validation
 ├── livrables/                     # Support PowerPoint pour l’oral
-├── DOCUMENTATION.md               # Architecture et choix défendables à l’oral
-├── PRESENTATION_10_MIN.md         # Déroulé du support oral
+├── SOUTENANCE_10_MIN.md           # Déroulé du support oral
 └── lancer_interface.bat           # Lancement simple sous Windows
-```
-
-## Dépôt collaboratif
-
-Le dépôt est partagé sur GitHub : <https://github.com/BornetFloryan/Projet_Velo_Libre_Service>.
-
-Avant de commencer une modification :
-
-```powershell
-git pull
-```
-
-Après une modification testée :
-
-```powershell
-git add .
-git commit -m "Description courte de la modification"
-git push
 ```
 
 ## Vérifications
 
 Les scénarios réalisés et leurs résultats attendus sont décrits dans [tests/TESTS.md](tests/TESTS.md). Ils couvrent les règles métier SQL ainsi que les parcours complets de l’interface.
+
+## Volumes de données
+
+Le dépôt contient un volume standard léger et un volume de comparaison séparé :
+
+- 3 000 réservations terminées, positions et changements d'état pour l'environnement normal.
+- 150 000 positions supplémentaires pour `VELO-001` uniquement dans les modes de comparaison.
+
+Le volume de comparaison permet de mesurer l'impact d'un index composé sans rendre le chargement trop long. Le partitionnement n'est pas activé dans le schéma : il n'est pas justifié par ce volume et les clés étrangères MySQL rendent son usage plus complexe.
