@@ -101,6 +101,16 @@ async function resetToDemoData(
       `USE \`${database}\`;`,
     );
     await runMysql(loadData);
+
+    let benchmarkData = await fs.readFile(
+      path.resolve(__dirname, "../../../donnees_benchmark_complet.sql"),
+      "utf8",
+    );
+    benchmarkData = benchmarkData.replace(
+      /USE\s+velo_libre_service\s*;/i,
+      `USE \`${database}\`;`,
+    );
+    await runMysql(benchmarkData);
   }
 }
 

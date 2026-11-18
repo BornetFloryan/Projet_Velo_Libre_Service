@@ -36,6 +36,8 @@ La base de test est construite avec les scripts suivants, dans cet ordre :
   \item \texttt{benchmark\_requetes\_principales.sql} : mesure sans puis avec les index ciblés.
 \end{enumerate}
 
+Pour éviter les imports manuels successifs, le fichier \texttt{installer\_benchmark\_complet.sql} enchaîne ces cinq étapes dans le client MySQL. Dans phpMyAdmin, la commande \texttt{SOURCE} n'est pas disponible : il suffit alors de cliquer sur « Charge optimisée » dans l'espace administrateur, ce qui charge automatiquement les quatre scripts de création et de données, puis d'importer uniquement \texttt{benchmark\_requetes\_principales.sql}.
+
 Le dernier jeu de charge ajoute 100 stations, 800 bornes, 100 vélos et 10\,000 trajets terminés. Il crée également des réservations, opérations de portefeuille, signalements, interventions et tournées. Les données sont fictives et réparties entre les comptes de simulation pour ne pas modifier les comptes de démonstration.
 
 \begin{center}
