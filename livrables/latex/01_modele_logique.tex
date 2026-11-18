@@ -1,0 +1,80 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{longtable,booktabs,array,tabularx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{BD70 - Vélo Libre-Service}
+\rhead{Modèle logique}
+\cfoot{\thepage}
+\newcommand{\pk}{\textbf{PK}}
+\newcommand{\fk}{\textit{FK}}
+\newcommand{\uq}{\textit{UQ}}
+\begin{document}
+
+\begin{center}
+{\LARGE\textbf{Modèle logique de données}}\\[0.4em]
+{\large Système de vélos en libre-service}\\[0.8em]
+Floryan Bornet \textperiodcentered\ Tim Carrara \textperiodcentered\ Enzo Vidy\\
+18 novembre 2026
+\end{center}
+
+\section{Conventions de lecture}
+Le modèle ci-dessous est la traduction relationnelle du modèle entité-association. \pk{} désigne une clé primaire, \fk{} une clé étrangère et \uq{} une contrainte d'unicité. Les attributs en italique sont des références vers une autre relation. Les types détaillés, les contraintes \texttt{CHECK} et les index sont définis dans \texttt{velo\_libre\_service\_mysql.sql}.
+
+\section{Schéma relationnel}
+\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.70\textwidth}}
+\toprule
+\textbf{Relation} & \textbf{Attributs}\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\texttt{CATEGORIE\_VELO} & \pk{} \texttt{id\_categorie}, \uq{} \texttt{libelle}.\\
+\texttt{FORMULE} & \pk{} \texttt{id\_formule}, \uq{} \texttt{nom}, \texttt{prix\_base}, \texttt{duree\_gratuite\_minutes}, \texttt{tarif\_par\_tranche}, \texttt{supplement\_electrique}.\\
+\texttt{STATION} & \pk{} \texttt{id\_station}, \uq{} \texttt{nom}, \texttt{adresse}, \texttt{latitude}, \texttt{longitude}, \texttt{capacite\_bornes}, \texttt{etat}, \texttt{seuil\_velos\_min}, \texttt{seuil\_bornes\_min}.\\
+\texttt{BORNE} & \pk{} \texttt{id\_borne}, \texttt{etat}, \fk{} \texttt{id\_station} $\rightarrow$ \texttt{STATION}.\\
+\texttt{USAGER} & \pk{} \texttt{id\_usager}, \texttt{nom}, \texttt{prenom}, \uq{} \texttt{email}, \texttt{mot\_de\_passe\_hash}, \texttt{solde\_portefeuille}, \texttt{tarif\_reduit}.\\
+\texttt{ABONNEMENT} & \pk{} \texttt{id\_abonnement}, \texttt{date\_debut}, \texttt{date\_fin}, \fk{} \texttt{id\_usager} $\rightarrow$ \texttt{USAGER}, \fk{} \texttt{id\_formule} $\rightarrow$ \texttt{FORMULE}.\\
+\texttt{VELO} & \pk{} \texttt{numero\_serie}, \texttt{etat}, \texttt{niveau\_batterie}, \texttt{date\_mise\_service}, \fk{} \texttt{id\_categorie} $\rightarrow$ \texttt{CATEGORIE\_VELO}, \uq{} \fk{} \texttt{id\_borne\_actuelle} $\rightarrow$ \texttt{BORNE}.\\
+\texttt{RESERVATION} & \pk{} \texttt{id\_reservation}, \texttt{date\_reservation}, \texttt{statut}, \fk{} \texttt{id\_usager} $\rightarrow$ \texttt{USAGER}, \fk{} \texttt{numero\_serie} $\rightarrow$ \texttt{VELO}.\\
+\texttt{TRAJET} & \pk{} \texttt{id\_trajet}, \texttt{date\_depart}, \texttt{date\_arrivee}, \texttt{cout\_facture}, \texttt{duree\_minutes}, \texttt{note\_evaluation}, \texttt{statut\_paiement}, \texttt{date\_paiement}, \fk{} \texttt{id\_usager} $\rightarrow$ \texttt{USAGER}, \fk{} \texttt{numero\_serie} $\rightarrow$ \texttt{VELO}, \fk{} \texttt{id\_station\_depart} $\rightarrow$ \texttt{STATION}, \fk{} \texttt{id\_station\_arrivee} $\rightarrow$ \texttt{STATION}, \fk{} \texttt{id\_borne\_depart} $\rightarrow$ \texttt{BORNE}, \fk{} \texttt{id\_borne\_arrivee} $\rightarrow$ \texttt{BORNE}.\\
+\texttt{OPERATION\_PORTEFEUILLE} & \pk{} \texttt{id\_operation}, \texttt{date\_heure}, \texttt{nature}, \texttt{montant}, \fk{} \texttt{id\_usager} $\rightarrow$ \texttt{USAGER}, \uq{} \fk{} \texttt{id\_trajet} $\rightarrow$ \texttt{TRAJET}.\\
+\texttt{SIGNALEMENT} & \pk{} \texttt{id\_signalement}, \texttt{date\_detection}, \texttt{description}, \fk{} \texttt{id\_usager} $\rightarrow$ \texttt{USAGER}, \fk{} \texttt{numero\_serie} $\rightarrow$ \texttt{VELO}, \fk{} \texttt{id\_station} $\rightarrow$ \texttt{STATION}.\\
+\texttt{OPERATEUR} & \pk{} \texttt{id\_operateur}, \texttt{nom\_prenom}, \uq{} \texttt{email}, \texttt{mot\_de\_passe\_hash}, \texttt{role\_operateur}.\\
+\texttt{INTERVENTION} & \pk{} \texttt{id\_intervention}, \texttt{date\_debut}, \texttt{date\_fin}, \texttt{type\_action}, \fk{} \texttt{id\_signalement} $\rightarrow$ \texttt{SIGNALEMENT}, \fk{} \texttt{id\_operateur} $\rightarrow$ \texttt{OPERATEUR}.\\
+\texttt{TOURNEE\_REGULATION} & \pk{} \texttt{id\_tournee}, \texttt{date\_tournee}, \texttt{immatriculation\_vehicule}, \fk{} \texttt{id\_operateur} $\rightarrow$ \texttt{OPERATEUR}.\\
+\texttt{MOUVEMENT\_REGULATION} & \pk{} \texttt{id\_mouvement}, \texttt{date\_heure}, \texttt{nature}, \fk{} \texttt{id\_tournee} $\rightarrow$ \texttt{TOURNEE\_REGULATION}, \fk{} \texttt{numero\_serie} $\rightarrow$ \texttt{VELO}, \fk{} \texttt{id\_station} $\rightarrow$ \texttt{STATION}.\\
+\texttt{HISTORIQUE\_POSITION} & \pk{} \texttt{id\_historique\_position}, \texttt{date\_heure}, \fk{} \texttt{ancienne\_borne} $\rightarrow$ \texttt{BORNE}, \fk{} \texttt{nouvelle\_borne} $\rightarrow$ \texttt{BORNE}, \texttt{type\_deplacement}, \fk{} \texttt{numero\_serie} $\rightarrow$ \texttt{VELO}.\\
+\texttt{HISTORIQUE\_ETAT} & \pk{} \texttt{id\_historique\_etat}, \texttt{date\_heure}, \texttt{ancien\_etat}, \texttt{nouvel\_etat}, \texttt{motif\_changement}, \fk{} \texttt{numero\_serie} $\rightarrow$ \texttt{VELO}.\\
+\end{longtable}
+\normalsize
+
+\section{Cardinalités traduites}
+\begin{itemize}
+  \item Une station possède de une à plusieurs bornes ; une borne appartient à une seule station.
+  \item Une catégorie concerne plusieurs vélos ; chaque vélo appartient à une seule catégorie.
+  \item Une borne contient zéro ou un vélo grâce à l'unicité de \texttt{VELO.id\_borne\_actuelle}. Un vélo n'occupe au plus qu'une borne.
+  \item Un usager souscrit zéro à plusieurs abonnements, effectue zéro à plusieurs réservations et trajets, et possède zéro à plusieurs opérations de portefeuille.
+  \item Une réservation relie un seul usager et un seul vélo. Un vélo peut avoir un historique de réservations mais une seule réservation active est autorisée par trigger.
+  \item Un trajet relie un usager, un vélo, une station et une borne de départ. Les références d'arrivée sont nulles tant que la restitution n'est pas faite.
+  \item Un signalement concerne simultanément un usager déclarant, un vélo et une station. Une intervention traite un signalement et est réalisée par un opérateur.
+  \item Une tournée de régulation est réalisée par un opérateur et contient zéro à plusieurs mouvements. Chaque mouvement enregistre le vélo et la station concernés.
+  \item Les deux tables d'historique conservent une chronologie de position et de changement d'état pour chaque vélo.
+\end{itemize}
+
+\section{Contraintes structurantes}
+Les clés étrangères empêchent les références orphelines. Les contraintes \texttt{CHECK} bornent notamment la batterie entre 0 et 100, les coordonnées GPS, les dates de trajet et d'abonnement, le coût positif et la note entre 1 et 5. Les colonnes \texttt{email}, \texttt{nom} de station, \texttt{libelle} de catégorie et \texttt{nom} de formule sont uniques lorsqu'elles identifient une information métier.
+
+Le modèle respecte la troisième forme normale : les informations propres à une entité ne sont stockées qu'une fois. Par exemple, la catégorie est séparée du vélo, la formule est séparée de l'abonnement et les opérations de portefeuille sont séparées du solde courant. Les snapshots \texttt{duree\_minutes} et \texttt{cout\_facture} du trajet sont volontairement conservés après la restitution pour préserver l'historique tarifaire.
+
+\end{document}

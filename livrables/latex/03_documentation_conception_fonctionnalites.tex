@@ -1,0 +1,90 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{booktabs,tabularx,enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{BD70 - Vélo Libre-Service}
+\rhead{Documentation de conception}
+\cfoot{\thepage}
+\begin{document}
+
+\begin{center}
+{\LARGE\textbf{Documentation de conception et des fonctionnalités}}\\[0.4em]
+{\large Système de vélos en libre-service}\\[0.8em]
+Floryan Bornet \textperiodcentered\ Tim Carrara \textperiodcentered\ Enzo Vidy\\
+18 novembre 2026
+\end{center}
+
+\section{Objectif}
+Le projet gère un réseau de vélos en libre-service : stations et bornes, flotte mécanique et électrique, usagers, abonnements, réservations, locations, paiement, signalements, maintenance et régulation. Il fournit une interface web permettant de réaliser les actions principales et de consulter l'état du réseau.
+
+\section{Architecture applicative}
+L'interface est développée en Vue 3 avec Vite. Les vues sont séparées par profil (usager, opérateur et éléments communs) et le store Pinia conserve l'utilisateur connecté, les données de la vue et les messages d'erreur ou de succès. Les services front-end centralisent les appels HTTP.
+
+Le serveur est une API Node.js/Express. Il gère l'authentification par session, les droits selon le rôle, les routes métier et les accès MySQL via \texttt{mysql2}. Les accès de consultation sont regroupés en repositories et services ; les routes d'action exécutent les opérations métier protégées par les règles de la base. La base est donc le dernier garant de la cohérence, même si une action venait d'un autre client que l'interface.
+
+\begin{center}
+\texttt{Vue 3} $\longrightarrow$ \texttt{service HTTP} $\longrightarrow$ \texttt{API Express} $\longrightarrow$ \texttt{MySQL}\\
+\hfill sessions et contrôles de rôle \hfill contraintes, triggers, procédures \hfill
+\end{center}
+
+\section{Fonctionnalités par rôle}
+\begin{tabularx}{\textwidth}{p{0.18\textwidth}X}
+\toprule
+\textbf{Rôle} & \textbf{Fonctionnalités}\
+\midrule
+Visiteur & Création d'un compte usager et connexion.\\
+Usager & Consultation et recherche des stations, visualisation des vélos disponibles, réservation pendant 15 minutes, emprunt, restitution sur une borne libre, consultation des trajets, notation d'un trajet, portefeuille, rechargement, achat d'abonnement, mise à jour de profil et signalement.\\
+Maintenance & Consultation des signalements, création et clôture d'interventions, mise à jour de l'état, de la batterie et de la position d'un vélo.\\
+Régulation & Création de tournée et enregistrement des retraits/dépôts de vélos. Le rééquilibrage consiste à déplacer des vélos d'une station trop pleine vers une station vide ou proche de son seuil minimal.\\
+Administration & Accès aux statistiques, gestion de l'état des stations et des formules, réinitialisation de la démonstration, en plus des possibilités maintenance et régulation.\\
+\bottomrule
+\end{tabularx}
+
+\section{Choix de conception}
+\subsection{Normalisation}
+Le schéma est en troisième forme normale. Chaque table représente un fait métier et possède une clé primaire. Les données descriptives ne sont pas répétées : la catégorie est séparée du vélo, la formule de l'abonnement, et l'opérateur de l'intervention. Les relations plusieurs-à-plusieurs potentielles sont matérialisées par des entités porteuses de sens, telles que \texttt{abonnement}, \texttt{reservation}, \texttt{trajet} et \texttt{mouvement\_regulation}.
+
+Deux données sont volontairement matérialisées : le solde courant de l'usager et le coût/durée d'un trajet terminé. Le solde accélère l'affichage du portefeuille et les valeurs du trajet sont des snapshots historiques : elles ne doivent pas changer si une formule tarifaire est modifiée plus tard. Les triggers assurent leur cohérence avec les opérations de portefeuille.
+
+\subsection{Intégrité et règles métier}
+Les clés étrangères, contraintes \texttt{UNIQUE}, \texttt{CHECK} et types contrôlés empêchent les états incohérents. Exemples : une borne ne peut accueillir qu'un vélo, une note est comprise entre 1 et 5, une date d'arrivée est postérieure à la date de départ, une batterie est comprise entre 0 et 100 et le portefeuille ne peut pas être négatif.
+
+Les triggers contrôlent ce qui dépend de plusieurs lignes : un usager ou un vélo ne peut avoir qu'un trajet ouvert ; un abonnement actif est obligatoire ; un vélo défectueux ou réservé à un autre usager est refusé ; la borne de départ/arrivée doit correspondre à la station annoncée et doit être libre lors de la restitution.
+
+\subsection{Tarification et paiement}
+La fonction \texttt{fn\_calculer\_cout\_trajet} recherche la formule active de l'usager, calcule les minutes dépassant la période gratuite par tranches de 30 minutes et ajoute, si nécessaire, le supplément électrique. Lors de la restitution, un trigger renseigne la durée, le coût, le statut de paiement et la date de paiement. Un second trigger replace le vélo sur sa borne, débite le portefeuille et crée l'opération comptable correspondante.
+
+\section{Automatisation dans MySQL}
+\begin{tabularx}{\textwidth}{p{0.32\textwidth}X}
+\toprule
+\textbf{Mécanisme} & \textbf{Responsabilité}\
+\midrule
+\texttt{trg\_velo\_ai\_historique\_etat} et \texttt{trg\_velo\_au\_historiser} & Créent l'historique de mise en service, de changement d'état et de déplacement de borne.\\
+Triggers de réservation & Vérifient la disponibilité, bloquent les doubles réservations, passent le vélo à réservé puis le libèrent après annulation/expiration.\\
+Triggers de trajet & Contrôlent l'emprunt, calculent et facturent la restitution, changent l'état et la position du vélo.\\
+\texttt{sp\_expirer\_reservations} et \texttt{ev\_expirer\_reservations} & Expirent automatiquement les réservations de plus de 15 minutes toutes les minutes.\\
+Vues \texttt{v\_etat\_station}, \texttt{v\_statistiques\_journalieres}, \texttt{v\_recettes\_par\_formule} & Centralisent les calculs utilisés par les stations et statistiques de l'interface.\\
+\bottomrule
+\end{tabularx}
+
+\section{Recherche, filtrage et statistiques}
+La page Stations permet de rechercher une station par nom ou adresse. Les données sont filtrées par état de vélo et rôle utilisateur. L'interface affiche les trajets d'un usager, les signalements, interventions et tournées des opérateurs. Les statistiques présentent les trajets et recettes quotidiennes, les recettes par formule, les stations les plus utilisées, le nombre total de trajets et leur durée moyenne.
+
+La page ``Historique des vélos'' utilise les tables d'historique pour afficher, pour un vélo choisi, les positions et les changements d'état dans l'ordre décroissant des dates.
+
+\section{Sécurité et confidentialité}
+Les mots de passe ne sont pas stockés en clair : les comptes de démonstration contiennent des hachages BCrypt. L'API utilise une session HTTP avec cookie \texttt{httpOnly}; les routes vérifient l'utilisateur connecté et le rôle avant chaque action opérateur. Les requêtes paramétrées de \texttt{mysql2} limitent les risques d'injection SQL. Les données fournies sont entièrement fictives.
+
+\section{Correspondance avec les exigences}
+Le projet permet d'ajouter et modifier des données (comptes, réservations, trajets, signalements, interventions, tournées, formules et stations selon les droits), de consulter et filtrer les stations et historiques, d'afficher des statistiques, et d'utiliser l'application à plusieurs rôles. La cohérence, l'historisation et les calculs sont automatisés dans MySQL ; l'interface couvre au minimum l'authentification, les stations, les locations et les statistiques demandées.
+
+\end{document}

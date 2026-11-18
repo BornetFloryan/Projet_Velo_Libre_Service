@@ -1,0 +1,91 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{booktabs,longtable,tabularx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{BD70 - Vélo Libre-Service}
+\rhead{Base et données factices}
+\cfoot{\thepage}
+\begin{document}
+
+\begin{center}
+{\LARGE\textbf{Base de données implémentée et données factices}}\\[0.4em]
+{\large Système de vélos en libre-service}\\[0.8em]
+Floryan Bornet \textperiodcentered\ Tim Carrara \textperiodcentered\ Enzo Vidy\\
+18 novembre 2026
+\end{center}
+
+\section{Contenu livré}
+La base est implémentée pour MySQL/MariaDB dans \texttt{velo\_libre\_service\_mysql.sql}. Ce script crée les 17 tables, les clés étrangères, contraintes, index, vues, fonction, triggers et événements. Le peuplement initial est dans \texttt{donnees\_test.sql}. Un troisième script, \texttt{donnees\_charge\_optimisation.sql}, ajoute une charge ciblée pour l'analyse des performances.
+
+Les scripts sont encodés en UTF-8. La base est créée avec le jeu de caractères \texttt{utf8mb4}, afin de conserver les accents dans les noms de station et les descriptions de signalements.
+
+\section{Ordre d'importation}
+\begin{enumerate}
+  \item Importer \texttt{velo\_libre\_service\_mysql.sql} dans MySQL/MariaDB.
+  \item Importer \texttt{donnees\_test.sql} dans la base \texttt{velo\_libre\_service}.
+  \item Pour le test de performance, importer en plus \texttt{donnees\_charge\_optimisation.sql}.
+  \item Vérifier l'activation du planificateur d'événements avec \texttt{SHOW EVENTS FROM velo\_libre\_service;} ; si le serveur le requiert, exécuter \texttt{SET GLOBAL event\_scheduler = ON;} avec un compte autorisé.
+\end{enumerate}
+
+La réinitialisation depuis l'interface administrateur applique les deux premiers scripts. Les modes de comparaison chargent également le jeu de charge et permettent de basculer entre index simple et index composé sans modifier les fichiers livrés.
+
+\section{Jeu de démonstration standard}
+Le jeu standard présente volontairement des situations variées : stations en service et en travaux, vélos mécaniques et électriques, vélo en maintenance ou hors service, réservation active, trajet en cours, trajet terminé et payé, signalement, intervention et tournée de régulation.
+
+\begin{center}
+\begin{tabular}{lrp{7cm}}
+\toprule
+\textbf{Élément} & \textbf{Quantité} & \textbf{Rôle dans la démonstration}\\
+\midrule
+Catégories & 2 & Vélos mécaniques et électriques.\\
+Formules & 3 & Ticket journée, abonnement mensuel, abonnement annuel réduit.\\
+Stations / bornes & 4 / 32 & Réseau géolocalisé avec seuils d'alerte et états distincts.\\
+Usagers & 12 & Quatre comptes de démonstration et huit comptes de simulation.\\
+Opérateurs & 3 & Un rôle maintenance, un rôle régulation et un rôle administration.\\
+Vélos & 12 & États, catégories, batteries et positions différents.\\
+Réservations & 3 002 & Une réservation active visible et 3 001 situations terminées ou historisées.\\
+Trajets & 2 & Un trajet payé et un trajet en cours.\\
+Historique de position & 3 015 & Historique initial, mouvements de régulation et volume de test standard.\\
+Historique d'état & 3 017 & Changements générés par les triggers et données de démonstration.\\
+Signalements / interventions & 1 / 1 & Cas de maintenance ouvert.\\
+Tournées / mouvements & 1 / 2 & Retrait puis dépôt lors d'un rééquilibrage.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Les huit comptes \texttt{simulation.*@example.test} sont exclusivement réservés aux événements de simulation. Ils évitent que les démonstrations automatiques ne perturbent les comptes présentés à l'oral. Les mots de passe sont stockés sous forme de hachage BCrypt ; le mot de passe de démonstration est \texttt{password}.
+
+\section{Jeu de charge pour l'optimisation}
+Le script de charge ajoute 150 000 lignes à \texttt{historique\_position}, toutes associées à \texttt{VELO-001}. Avec les 3 015 lignes déjà présentes, la base de benchmark contient 153 015 positions historiques. Ce choix concentre les données sur l'historique réellement consulté par l'application et rend mesurable l'effet de l'index \texttt{(numero\_serie, date\_heure)} sans créer un volume inutile dans toutes les tables.
+
+Le jeu de charge est reproductible : il construit une table temporaire de nombres par produit cartésien, puis insère les positions avec des dates et bornes variées. Il n'utilise aucune donnée personnelle réelle.
+
+\section{Processus qui font vivre la base}
+\begin{itemize}
+  \item \textbf{Expiration :} toutes les minutes, l'événement \texttt{ev\_expirer\_reservations} appelle la procédure \texttt{sp\_expirer\_reservations}. Une réservation active de plus de 15 minutes devient expirée et le vélo redevient disponible si aucun trajet n'est ouvert.
+  \item \textbf{Simulation :} des événements dédiés créent des réservations, emprunts, restitutions, pannes, réparations et recharges sur les comptes et vélos de simulation. Ils permettent d'observer l'historisation et les statistiques sur une base vivante.
+  \item \textbf{Historisation :} tout ajout ou changement d'état/borne d'un vélo alimente automatiquement \texttt{historique\_etat} et \texttt{historique\_position}.
+\end{itemize}
+
+Ces mécanismes sont adaptés à une démonstration. En production, les événements de simulation seraient désactivés et remplacés par les interactions réelles des usagers et opérateurs.
+
+\section{Vérifications utiles}
+Après l'import, les requêtes suivantes permettent de vérifier rapidement le contenu :
+\begin{verbatim}
+SELECT * FROM v_etat_station;
+SELECT COUNT(*) FROM reservation;
+SELECT COUNT(*) FROM historique_position;
+SHOW TRIGGERS FROM velo_libre_service;
+SHOW EVENTS FROM velo_libre_service;
+\end{verbatim}
+
+\end{document}
