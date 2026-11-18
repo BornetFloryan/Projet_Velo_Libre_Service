@@ -4,7 +4,7 @@
 \usepackage[french]{babel}
 \usepackage{lmodern}
 \usepackage[a4paper,margin=2.2cm]{geometry}
-\usepackage{booktabs,tabularx}
+\usepackage{booktabs,tabularx,longtable}
 \usepackage[hidelinks]{hyperref}
 \usepackage{fancyhdr}
 \setlength{\parindent}{0pt}
@@ -19,42 +19,108 @@
 \begin{center}
 {\LARGE\textbf{Rapport d'analyse des performances}}\\[0.4em]
 {\large Système de vélos en libre-service}\\[0.8em]
-Floryan Bornet \textperiodcentered\ Tim Carrara \textperiodcentered\ Enzo Vidy\\
+Floryan BORNET \textperiodcentered\ Tim CARRARA \textperiodcentered\ Enzo VIDY\\
 18 novembre 2026
 \end{center}
 
 \section{Objectif}
-Ce rapport mesure l'effet d'un index composé sur une requête centrale de l'application : l'affichage de l'historique de position d'un vélo. Cette consultation filtre un vélo donné puis ordonne ses déplacements du plus récent au plus ancien. Elle est utilisée par la vue opérateur ``Historique des vélos''.
+Ce rapport analyse les requêtes de consultation réellement utilisées par l'interface : état du réseau, catalogue de vélos, trajets d'un usager, statistiques et historique d'un vélo. L'objectif est de vérifier que les fonctionnalités principales restent réactives et de mesurer l'apport des index lorsque le volume d'historique augmente.
 
-\section{Jeu de données et protocole}
-Les mesures ont été réalisées sur MySQL local, le 18 novembre 2026, dans une base temporaire recréée à partir des scripts livrés. Le jeu de charge ajoute 150 000 positions à \texttt{VELO-001}. La base mesurée contenait donc 153 015 lignes dans \texttt{historique\_position}, en plus de 3 002 réservations, 3 017 changements d'état, 12 usagers, 12 vélos et 32 bornes.
+\section{Environnement et protocole}
+Les mesures ont été exécutées le 18 novembre 2026 sur MySQL local, dans une base temporaire recréée à partir des scripts livrés. Le jeu de charge ajoute 150\,000 positions à \texttt{VELO-001}. La base de test contient donc 153\,015 lignes dans \texttt{historique\_position}, 3\,002 réservations, 3\,017 changements d'état, 12 usagers, 12 vélos et 32 bornes.
 
-Le script \texttt{benchmark\_optimisation.sql} mesure la même requête dans les deux scénarios. Au-delà de 50 000 lignes, il réalise trois répétitions et conserve les 500 dernières positions retournées à chaque itération. Le temps est calculé par \texttt{TIMESTAMPDIFF(MICROSECOND, ...)} puis exprimé en millisecondes.
+Les temps des requêtes applicatives incluent l'exécution MySQL et le retour des lignes vers le pilote Node.js \texttt{mysql2}, sur la machine locale. Cinq exécutions de chauffe sont réalisées avant les mesures. Les consultations courantes sont répétées 100 fois ; l'historique paginé 20 fois et l'historique complet 3 fois. Les valeurs indiquées sont des moyennes par exécution. La comparaison d'index utilise, elle, le script SQL \texttt{benchmark\_optimisation.sql} et son chronométrage interne MySQL.
 
+\section{Requêtes principales}
+\subsection{Q1 - État du réseau de stations}
+Cette requête alimente la page Stations : elle affiche les vélos disponibles par catégorie et les bornes libres par station.
 \begin{verbatim}
-SELECT h.id_historique_position
+SELECT ves.*, s.adresse, s.latitude, s.longitude,
+       s.seuil_velos_min, s.seuil_bornes_min
+FROM v_etat_station ves
+JOIN station s ON s.id_station = ves.id_station
+ORDER BY ves.nom;
+\end{verbatim}
+
+\subsection{Q2 - Catalogue des vélos disponibles}
+Cette requête permet l'affichage des vélos, de leur catégorie, de leur état et de leur station actuelle.
+\begin{verbatim}
+SELECT v.numero_serie, v.etat, v.niveau_batterie,
+       v.id_borne_actuelle, b.id_station,
+       c.libelle AS categorie, s.nom AS station_nom
+FROM velo v
+LEFT JOIN borne b ON b.id_borne = v.id_borne_actuelle
+JOIN categorie_velo c ON c.id_categorie = v.id_categorie
+LEFT JOIN station s ON s.id_station = b.id_station
+ORDER BY s.nom, b.id_borne, v.numero_serie;
+\end{verbatim}
+
+\subsection{Q3 - Historique des trajets d'un usager}
+\begin{verbatim}
+SELECT t.*, ds.nom AS station_depart_nom,
+       ar.nom AS station_arrivee_nom
+FROM trajet t
+JOIN station ds ON ds.id_station = t.id_station_depart
+LEFT JOIN station ar ON ar.id_station = t.id_station_arrivee
+WHERE t.id_usager = ?
+ORDER BY t.date_depart DESC;
+\end{verbatim}
+L'index \texttt{idx\_trajet\_usager\_date(id\_usager, date\_depart)} est aligné sur le filtre et l'ordre de cette consultation.
+
+\subsection{Q4 - Statistiques journalières}
+\begin{verbatim}
+SELECT *
+FROM v_statistiques_journalieres
+ORDER BY jour DESC
+LIMIT 14;
+\end{verbatim}
+La vue regroupe les trajets terminés par date de départ et retourne le nombre de trajets, la durée moyenne et les recettes.
+
+\subsection{Q5 - Historique de position d'un vélo}
+La requête suivante est le cas coûteux du projet, car elle joint l'historique aux bornes et stations et doit trier chronologiquement les déplacements d'un vélo.
+\begin{verbatim}
+SELECT h.date_heure, h.type_deplacement,
+       oldStation.nom AS ancienne_station,
+       newStation.nom AS nouvelle_station
 FROM historique_position h
-LEFT JOIN borne b_depart ON b_depart.id_borne = h.ancienne_borne
-LEFT JOIN borne b_arrivee ON b_arrivee.id_borne = h.nouvelle_borne
-WHERE h.numero_serie = 'VELO-001'
+LEFT JOIN borne oldBorne ON oldBorne.id_borne = h.ancienne_borne
+LEFT JOIN station oldStation ON oldStation.id_station = oldBorne.id_station
+LEFT JOIN borne newBorne ON newBorne.id_borne = h.nouvelle_borne
+LEFT JOIN station newStation ON newStation.id_station = newBorne.id_station
+WHERE h.numero_serie = ?
 ORDER BY h.date_heure DESC
 LIMIT 500;
 \end{verbatim}
 
-\section{Optimisation étudiée}
-Le scénario initial conserve un index simple sur \texttt{numero\_serie}. Il est utile pour filtrer le vélo mais ne correspond pas entièrement au besoin de tri chronologique. Le scénario optimisé utilise l'index composé suivant :
+\section{Temps des requêtes applicatives}
+\begin{center}
+\begin{tabular}{p{0.43\textwidth}rrr}
+\toprule
+\textbf{Requête} & \textbf{Répétitions} & \textbf{Lignes} & \textbf{Moyenne}\\
+\midrule
+Q1 - État du réseau & 100 & 4 & 0,564 ms\\
+Q2 - Catalogue des vélos & 100 & 12 & 0,348 ms\\
+Q3 - Trajets d'un usager & 100 & 1 & 0,292 ms\\
+Q4 - Statistiques journalières & 100 & 1 & 0,275 ms\\
+Q5 - Historique paginé (500 lignes) & 20 & 500 & 2,215 ms\\
+Q5 - Historique non paginé & 3 & 151\,753 & 547,689 ms\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Les quatre premières requêtes sont très rapides car elles travaillent sur les tables opérationnelles de taille modérée. Le résultat important est la dernière ligne : renvoyer l'intégralité de l'historique d'un vélo devient coûteux dès que le volume augmente. Une interface ne doit pas transférer 151\,753 lignes à l'écran ; elle doit demander une page, par exemple les 500 dernières positions, puis proposer un chargement progressif si nécessaire.
+
+\section{Comparaison avant/après index composé}
+Pour isoler l'effet de l'index, le script \texttt{benchmark\_optimisation.sql} exécute Q5 avec les mêmes données et 500 lignes retournées. Il compare un index simple sur \texttt{numero\_serie} à l'index composé ci-dessous :
 \begin{verbatim}
 CREATE INDEX idx_historique_position_velo_date
 ON historique_position (numero_serie, date_heure);
 \end{verbatim}
 
-L'ordre des colonnes est volontaire : la première correspond au prédicat d'égalité \texttt{WHERE numero\_serie = ...}, puis la seconde à \texttt{ORDER BY date\_heure DESC}. Les enregistrements du même vélo sont donc structurés par date dans l'index.
-
-\section{Résultats}
 \begin{center}
 \begin{tabular}{lrrrr}
 \toprule
-\textbf{Scénario} & \textbf{Répétitions} & \textbf{Temps total} & \textbf{Moyenne} & \textbf{Gain}\
+\textbf{Scénario} & \textbf{Répétitions} & \textbf{Temps total} & \textbf{Moyenne} & \textbf{Gain}\\
 \midrule
 Index simple sur \texttt{numero\_serie} & 3 & 799,076 ms & 266,359 ms & référence\\
 Index composé \texttt{(numero\_serie, date\_heure)} & 3 & 22,176 ms & 7,392 ms & $\times$36,0\\
@@ -62,22 +128,20 @@ Index composé \texttt{(numero\_serie, date\_heure)} & 3 & 22,176 ms & 7,392 ms 
 \end{tabular}
 \end{center}
 
-Le gain observé est d'environ 258,967 ms par exécution, soit une durée moyenne divisée par 36. Le résultat est cohérent avec l'objectif de l'index : réduire le travail nécessaire après le filtrage du vélo et servir directement un ordre compatible avec la chronologie demandée.
+L'index composé correspond à la structure de Q5 : d'abord une égalité dans \texttt{WHERE numero\_serie = ...}, puis un ordre sur \texttt{date\_heure}. MySQL sélectionne \texttt{idx\_historique\_position\_velo\_date} dans \texttt{EXPLAIN FORMAT=JSON}. Les jointures vers bornes et stations utilisent leurs clés primaires avec un accès \texttt{eq\_ref}.
 
-\section{Vérification du plan}
-Le \texttt{EXPLAIN FORMAT=JSON} produit par le script indique que MySQL sélectionne \texttt{idx\_historique\_position\_velo\_date} dans le scénario optimisé. Les jointures vers les bornes et stations s'appuient sur leurs clés primaires avec le type d'accès \texttt{eq\_ref}. Le point coûteux est donc bien l'accès à l'historique, qui est précisément celui visé par l'index.
-
-\section{Autres index ciblés}
-La base ne crée pas un index sur chaque colonne : un index accélère les lectures mais consomme de l'espace et doit être maintenu lors des insertions et mises à jour. Les index ont été choisis à partir des requêtes fréquentes :
+\section{Index ciblés et justification}
+Un index n'est pas ajouté sur chaque colonne : il accélère les lectures mais occupe de l'espace et doit être mis à jour lors d'un \texttt{INSERT} ou \texttt{UPDATE}. Les index du projet sont donc reliés à des requêtes réelles :
 \begin{itemize}
-  \item \texttt{reservation(statut, date\_reservation)} pour l'expiration périodique des réservations ;
-  \item \texttt{trajet(id\_usager, date\_depart)} pour l'historique d'un usager ;
-  \item \texttt{trajet(numero\_serie, date\_arrivee)} pour vérifier qu'un vélo n'est pas déjà en location ;
-  \item \texttt{borne(id\_station, etat)} et \texttt{velo(etat, id\_categorie)} pour l'état des stations ;
-  \item \texttt{historique\_etat(numero\_serie, date\_heure)} pour la chronologie des changements d'état.
+  \item \texttt{borne(id\_station, etat)} et \texttt{velo(etat, id\_categorie)} : état et disponibilité des stations ;
+  \item \texttt{reservation(statut, date\_reservation)} : expiration périodique des réservations ;
+  \item \texttt{reservation(numero\_serie, statut)} : contrôle d'une réservation active pour un vélo ;
+  \item \texttt{trajet(id\_usager, date\_depart)} : Q3, historique personnel classé par date ;
+  \item \texttt{trajet(numero\_serie, date\_arrivee)} : détection d'un vélo déjà en location ;
+  \item \texttt{historique\_position(numero\_serie, date\_heure)} et \texttt{historique\_etat(numero\_serie, date\_heure)} : chronologies de vélo.
 \end{itemize}
 
-\section{Limites et reproductibilité}
-Un temps absolu dépend de la machine, de la version de MySQL, de la mémoire disponible et du cache. La conclusion fiable est donc la comparaison sur la même machine, avec la même requête et le même jeu de données. Pour reproduire cette mesure, importer les scripts de schéma et de données, charger \texttt{donnees\_charge\_optimisation.sql}, puis exécuter \texttt{benchmark\_optimisation.sql}. Les temps affichés par la table temporaire \texttt{resultat\_benchmark} sont ceux à présenter pour l'environnement utilisé.
+\section{Conclusion et amélioration retenue}
+La base répond rapidement aux écrans opérationnels dans le jeu de démonstration. Le benchmark met en évidence le gain mesurable de l'index composé : Q5 passe de 266,359 ms à 7,392 ms côté MySQL, soit un facteur 36. La pagination de l'historique est également nécessaire : elle limite le volume transféré et ramène l'affichage de 547,689 ms à 2,215 ms dans le scénario mesuré. Les temps doivent être relancés sur la machine de présentation, car ils dépendent du matériel, de MySQL et du cache ; la comparaison avant/après reste reproductible avec les scripts livrés.
 
 \end{document}
